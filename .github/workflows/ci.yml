@@ -48,6 +48,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # La résolution des dépendances optionnelles multiplateformes diffère
+      # entre npm 10 et npm 11 : `npm ci` refuse alors un verrou pourtant
+      # valide. La version doit être la même ici que sur le poste de travail.
+      - name: Aligner la version de npm sur celle du verrou
+        run: npm install -g npm@11.6.2
+
       - name: Installer les dépendances
         run: npm ci
 
@@ -101,6 +107,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      # La résolution des dépendances optionnelles multiplateformes diffère
+      # entre npm 10 et npm 11 : `npm ci` refuse alors un verrou pourtant
+      # valide. La version doit être la même ici que sur le poste de travail.
+      - name: Aligner la version de npm sur celle du verrou
+        run: npm install -g npm@11.6.2
 
       - name: Installer les dépendances
         run: npm ci
