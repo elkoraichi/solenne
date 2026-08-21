@@ -1,0 +1,655 @@
+// La Maison de Solenne — modèle de données
+// Référence : 02_Analyse_Architecture.md §4
+//
+// Conventions
+//   · Les dates de séjour et de blocage sont des DATES nues (@db.Date) : la
+//     convention [arrivée, départ[ se raisonne en jours, pas en instants.
+//   · Les instants (événements, horodatages) sont des timestamptz stockés en UTC
+//     et affichés en Europe/Paris (CORE-R5).
+//   · Les noms de tables sont en snake_case pluriel via @@map.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "nodejs"
+}
+
+// Prisma 7 : l'URL de connexion vit dans `prisma.config.ts` (Migrate) et dans
+// l'adaptateur passé à PrismaClient (exécution). Jamais dans ce fichier.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Énumérations
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  FRIEND
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RelationType {
+  CLOSE_FRIEND
+  FAMILY
+  ACQUAINTANCE
+  OTHER
+}
+
+enum SpaceType {
+  ROOM
+  OFFICE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum ParticipantStatus {
+  PENDING
+  YES
+  NO
+  MAYBE
+}
+
+enum StayRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum StayStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum StayPrivacy {
+  HIDDEN
+  BUSY_ONLY
+  FULL
+}
+
+enum BlockedPeriodType {
+  MAINTENANCE
+  PERSONAL
+  OTHER
+}
+
+enum NotificationChannel {
+  INAPP
+  EMAIL
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum CommentEntityType {
+  EVENT
+  STAY_REQUEST
+}
+
+// ---------------------------------------------------------------------------
+// 4.1 — Identité et maison
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  emailVerified DateTime?     @map("email_verified")
+  passwordHash  String?       @map("password_hash")
+  firstName     String        @map("first_name")
+  lastName      String?       @map("last_name")
+  phone         String?
+  avatarUrl     String?       @map("avatar_url")
+  role          Role          @default(FRIEND)
+  relationType  RelationType? @map("relation_type")
+  childrenCount Int           @default(0) @map("children_count")
+  notes         String?
+  preferences   Json          @default("{}")
+  status        UserStatus    @default(ACTIVE)
+  lastLoginAt   DateTime?     @map("last_login_at")
+  // Suppression RGPD : les données personnelles sont effacées, la ligne reste
+  // pour ne pas casser l'historique des séjours (USR-R5).
+  anonymizedAt  DateTime?     @map("anonymized_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  accounts                Account[]               @relation("UserAccounts")
+  sessions                Session[]
+  invitationsSent         Invitation[]            @relation("InvitationInvitedBy")
+  passwordResetTokens     PasswordResetToken[]
+  emailChangeRequests     EmailChangeRequest[]
+  stayRequests            StayRequest[]           @relation("StayRequestRequester")
+  stayRequestsDecided     StayRequest[]           @relation("StayRequestDecidedBy")
+  stays                   Stay[]
+  eventsCreated           Event[]                 @relation("EventCreatedBy")
+  eventParticipations     EventParticipant[]
+  activityParticipations  ActivityParticipant[]
+  itemClaims              EventItemClaim[]
+  blockedPeriodsCreated   BlockedPeriod[]         @relation("BlockedPeriodCreatedBy")
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  comments                Comment[]
+  auditLogs               AuditLog[]              @relation("AuditLogActor")
+
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+// Auth.js — fournisseurs externes (prépare Google / Apple, §4.1)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token")
+  accessToken       String? @map("access_token")
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+  idToken           String? @map("id_token")
+  sessionState      String? @map("session_state")
+
+  user User @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Sessions maîtrisées côté serveur : le cookie ne porte qu'un jeton opaque dont
+// seule l'empreinte est stockée. Supprimer la ligne suffit à révoquer l'accès
+// (AUTH-R6, PERM-R3, USR-R3).
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastUsedAt   DateTime @default(now()) @map("last_used_at")
+  ip           String?
+  userAgent    String?  @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+  @@map("sessions")
+}
+
+// Changement d'email : la nouvelle adresse n'est prise en compte qu'après
+// confirmation par lien (PROF-R4).
+model EmailChangeRequest {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  newEmail  String    @map("new_email")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_change_requests")
+}
+
+// Limitation de débit durable. Une ligne par tentative ; le comptage se fait
+// sur une fenêtre glissante. En base plutôt qu'en mémoire : sur un hébergement
+// sans état, un compteur en mémoire ne protège rien.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  cle       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([cle, createdAt])
+  @@map("rate_limit_hits")
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  tokenHash   String    @unique @map("token_hash")
+  role        Role      @default(FRIEND)
+  invitedById String    @map("invited_by_id")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  invitedBy User @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model House {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  address     String?
+  capacityMax Int      @map("capacity_max")
+  photos      String[] @default([])
+  coverImage  String?  @map("cover_image")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  spaces          Space[]
+  rules           HouseRule[]
+  bookingSettings BookingSettings?
+  events          Event[]
+  stays           Stay[]
+  blockedPeriods  BlockedPeriod[]
+
+  @@map("houses")
+}
+
+model Space {
+  id          String    @id @default(cuid())
+  houseId     String    @map("house_id")
+  type        SpaceType
+  name        String
+  description String?
+  sleeps      Int       @default(0)
+  bedType     String?   @map("bed_type")
+  amenities   String[]  @default([])
+  photos      String[]  @default([])
+  order       Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  house       House            @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  assignments SpaceAssignment[]
+
+  @@index([houseId, type])
+  @@map("spaces")
+}
+
+model HouseRule {
+  id                 String   @id @default(cuid())
+  houseId            String   @map("house_id")
+  title              String
+  body               String
+  icon               String?
+  order              Int      @default(0)
+  active             Boolean  @default(true)
+  requiresAcceptance Boolean  @default(false) @map("requires_acceptance")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@index([houseId, order])
+  @@map("house_rules")
+}
+
+model BookingSettings {
+  id                  String      @id @default(cuid())
+  houseId             String      @unique @map("house_id")
+  maxGuests           Int         @default(10) @map("max_guests")
+  maxStayNights       Int         @default(14) @map("max_stay_nights")
+  minLeadTimeHours    Int         @default(48) @map("min_lead_time_hours")
+  maxAdvanceDays      Int         @default(365) @map("max_advance_days")
+  blockedWeekdays     Int[]       @default([]) @map("blocked_weekdays")
+  defaultStayPrivacy  StayPrivacy @default(BUSY_ONLY) @map("default_stay_privacy")
+  allowCoOccupancy    Boolean     @default(true) @map("allow_co_occupancy")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@map("booking_settings")
+}
+
+// ---------------------------------------------------------------------------
+// 4.2 — Événements
+// ---------------------------------------------------------------------------
+
+model Event {
+  id          String      @id @default(cuid())
+  houseId     String      @map("house_id")
+  title       String
+  description String?
+  startAt     DateTime    @map("start_at") @db.Timestamptz(3)
+  endAt       DateTime    @map("end_at") @db.Timestamptz(3)
+  location    String?
+  capacityMax Int?        @map("capacity_max")
+  coverImage  String?     @map("cover_image")
+  status      EventStatus @default(DRAFT)
+  createdById String      @map("created_by_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  house        House              @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  createdBy    User               @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  participants EventParticipant[]
+  activities   EventActivity[]
+  items        EventItem[]
+
+  @@index([houseId, startAt])
+  @@index([status])
+  @@map("events")
+}
+
+model EventParticipant {
+  id             String            @id @default(cuid())
+  eventId        String            @map("event_id")
+  userId         String            @map("user_id")
+  status         ParticipantStatus @default(PENDING)
+  adultsExtra    Int               @default(0) @map("adults_extra")
+  childrenExtra  Int               @default(0) @map("children_extra")
+  sleepsOver     Boolean           @default(false) @map("sleeps_over")
+  nightFrom      DateTime?         @map("night_from") @db.Date
+  nightTo        DateTime?         @map("night_to") @db.Date
+  arrivalAt      DateTime?         @map("arrival_at") @db.Timestamptz(3)
+  departureAt    DateTime?         @map("departure_at") @db.Timestamptz(3)
+  comment        String?
+  respondedAt    DateTime?         @map("responded_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("event_participants")
+}
+
+model EventActivity {
+  id          String   @id @default(cuid())
+  eventId     String   @map("event_id")
+  title       String
+  description String?
+  startAt     DateTime @map("start_at") @db.Timestamptz(3)
+  durationMin Int?     @map("duration_min")
+  location    String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  event        Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants ActivityParticipant[]
+
+  @@index([eventId, startAt])
+  @@map("event_activities")
+}
+
+model ActivityParticipant {
+  id         String   @id @default(cuid())
+  activityId String   @map("activity_id")
+  userId     String   @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  activity EventActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([userId])
+  @@map("activity_participants")
+}
+
+model EventItem {
+  id          String   @id @default(cuid())
+  eventId     String   @map("event_id")
+  label       String
+  category    String?
+  slotsNeeded Int      @default(1) @map("slots_needed")
+  unit        String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  event  Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  claims EventItemClaim[]
+
+  @@index([eventId])
+  @@map("event_items")
+}
+
+model EventItemClaim {
+  id        String   @id @default(cuid())
+  itemId    String   @map("item_id")
+  userId    String   @map("user_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  item EventItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, userId])
+  @@index([userId])
+  @@map("event_item_claims")
+}
+
+// ---------------------------------------------------------------------------
+// 4.3 — Séjours et occupation
+// ---------------------------------------------------------------------------
+
+model StayRequest {
+  id              String            @id @default(cuid())
+  requesterId     String            @map("requester_id")
+  arrivalDate     DateTime          @map("arrival_date") @db.Date
+  departureDate   DateTime          @map("departure_date") @db.Date
+  adults          Int               @default(1)
+  children        Int               @default(0)
+  purpose         String?
+  comment         String?
+  specialNeeds    String?           @map("special_needs")
+  exclusive       Boolean           @default(false)
+  status          StayRequestStatus @default(PENDING)
+  decidedById     String?           @map("decided_by_id")
+  decidedAt       DateTime?         @map("decided_at")
+  decisionNote    String?           @map("decision_note")
+  rulesAcceptedAt DateTime?         @map("rules_accepted_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  requester User        @relation("StayRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  decidedBy User?       @relation("StayRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  stay      Stay?
+  guests    StayGuest[]
+
+  @@index([status, arrivalDate])
+  @@index([requesterId])
+  @@map("stay_requests")
+}
+
+model Stay {
+  id           String      @id @default(cuid())
+  houseId      String      @map("house_id")
+  requestId    String?     @unique @map("request_id")
+  userId       String      @map("user_id")
+  startDate    DateTime    @map("start_date") @db.Date
+  endDate      DateTime    @map("end_date") @db.Date
+  adults       Int         @default(1)
+  children     Int         @default(0)
+  exclusive    Boolean     @default(false)
+  isOwnerStay  Boolean     @default(false) @map("is_owner_stay")
+  privacyLevel StayPrivacy @default(BUSY_ONLY) @map("privacy_level")
+  status       StayStatus  @default(CONFIRMED)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  house       House             @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  request     StayRequest?      @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guests      StayGuest[]
+  assignments SpaceAssignment[]
+
+  @@index([houseId, startDate, endDate])
+  @@index([userId])
+  @@index([status])
+  @@map("stays")
+}
+
+model StayGuest {
+  id            String   @id @default(cuid())
+  stayRequestId String?  @map("stay_request_id")
+  stayId        String?  @map("stay_id")
+  name          String
+  isChild       Boolean  @default(false) @map("is_child")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  stayRequest StayRequest? @relation(fields: [stayRequestId], references: [id], onDelete: Cascade)
+  stay        Stay?        @relation(fields: [stayId], references: [id], onDelete: Cascade)
+
+  @@index([stayRequestId])
+  @@index([stayId])
+  @@map("stay_guests")
+}
+
+// Table créée dès le lot 0, interface post-MVP (§14, §15).
+model SpaceAssignment {
+  id        String   @id @default(cuid())
+  stayId    String   @map("stay_id")
+  spaceId   String   @map("space_id")
+  from      DateTime @db.Date
+  to        DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  stay  Stay  @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([stayId])
+  @@index([spaceId, from, to])
+  @@map("space_assignments")
+}
+
+model BlockedPeriod {
+  id          String            @id @default(cuid())
+  houseId     String            @map("house_id")
+  startDate   DateTime          @map("start_date") @db.Date
+  endDate     DateTime          @map("end_date") @db.Date
+  label       String
+  reason      String?
+  type        BlockedPeriodType @default(OTHER)
+  createdById String            @map("created_by_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  house     House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("BlockedPeriodCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([houseId, startDate, endDate])
+  @@map("blocked_periods")
+}
+
+// ---------------------------------------------------------------------------
+// 4.4 — Communication et traçabilité
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  type       String
+  title      String
+  body       String?
+  entityType String?   @map("entity_type")
+  entityId   String?   @map("entity_id")
+  payload    Json      @default("{}")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationDelivery {
+  id             String              @id @default(cuid())
+  notificationId String              @map("notification_id")
+  channel        NotificationChannel
+  status         DeliveryStatus      @default(PENDING)
+  sentAt         DateTime?           @map("sent_at")
+  error          String?
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([status])
+  @@map("notification_deliveries")
+}
+
+model NotificationPreference {
+  id       String                @id @default(cuid())
+  userId   String                @map("user_id")
+  type     String
+  channels NotificationChannel[] @default([])
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("notification_preferences")
+}
+
+model Comment {
+  id         String            @id @default(cuid())
+  entityType CommentEntityType @map("entity_type")
+  entityId   String            @map("entity_id")
+  authorId   String            @map("author_id")
+  body       String
+  editedAt   DateTime?         @map("edited_at")
+  deletedAt  DateTime?         @map("deleted_at")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("comments")
+}
+
+// Journal d'audit — écriture seule (règle non négociable n°8).
+// Aucune mise à jour, aucune suppression : garanti par des triggers PostgreSQL.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  diff       Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

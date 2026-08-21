@@ -1,0 +1,940 @@
+
+Ne développe pas ces fonctionnalités maintenant. 
+
+# Projet : Maison de campagne de Solenne — plateforme privée pour amis, événements et séjours
+
+## 1. Contexte
+
+Solenne est mon amie et elle entretient une relation très proche avec ma fille Houyam.
+
+Elle vient de faire l'acquisition d'une grande maison de campagne d'environ **200 m²**, comprenant plusieurs chambres ainsi que **deux bureaux**.
+
+La maison a plusieurs usages :
+
+* Solenne y séjourne personnellement.
+* Elle souhaite pouvoir y recevoir ses amis.
+* Elle souhaite y organiser ponctuellement des événements : weekends entre amis, repas, fêtes, activités, journées à thème, etc.
+* Elle souhaite pouvoir y télétravailler.
+* Elle souhaite également mettre ponctuellement la maison à disposition de ses amis et connaissances pour des séjours privés :
+
+  * quelques heures ;
+  * une journée ;
+  * un weekend ;
+  * plusieurs jours ;
+  * une semaine ou davantage.
+
+L'objectif est de créer une **application web privée, élégante, simple et conviviale**, permettant de gérer la vie de cette maison et les relations avec les amis de Solenne.
+
+Ce n'est pas un site de location commerciale type Airbnb.
+
+Il s'agit avant tout d'une **maison privée partagée avec un cercle d'amis et de connaissances**.
+
+---
+
+# 2. Objectifs principaux
+
+L'application doit répondre à deux besoins principaux.
+
+## A. Organiser les événements
+
+Solenne doit pouvoir créer et gérer des événements organisés dans la maison.
+
+Par exemple :
+
+> Weekend barbecue chez Solenne
+> Samedi 12 septembre → dimanche 13 septembre
+> 10 personnes maximum
+> Barbecue, piscine, randonnée, jeux de société
+
+Les amis invités doivent pouvoir :
+
+* consulter les événements ;
+* indiquer s'ils participent ou non ;
+* éventuellement indiquer combien de personnes les accompagnent ;
+* préciser leurs disponibilités ;
+* voir qui participe ;
+* voir les informations pratiques ;
+* voir les activités prévues ;
+* proposer ou sélectionner ce qu'ils peuvent apporter ;
+* échanger des informations liées à l'événement.
+
+L'objectif est de remplacer les conversations WhatsApp interminables par un espace organisé.
+
+---
+
+# 3. Gestion des séjours / demandes de réservation
+
+Le deuxième objectif est de permettre aux amis de Solenne de demander à utiliser la maison.
+
+Exemple :
+
+> "J'aimerais venir avec ma famille du vendredi 18 au dimanche 20 septembre."
+
+L'utilisateur doit pouvoir effectuer une demande directement depuis le site.
+
+Il doit pouvoir :
+
+* choisir une date d'arrivée ;
+* choisir une date de départ ;
+* indiquer le nombre de personnes ;
+* préciser les personnes qui viennent avec lui ;
+* préciser éventuellement le motif ou le type de séjour ;
+* ajouter un commentaire ;
+* éventuellement indiquer ses besoins particuliers.
+
+La demande ne doit **pas être automatiquement acceptée**.
+
+Elle doit passer par une validation de Solenne.
+
+Workflow :
+
+**Demande → En attente → Acceptée / Refusée / Annulée**
+
+Une fois acceptée :
+
+{Modification Yassine} * les dates peuvent rester disponibles ou deviennent indisponibles selon la situation; 
+par exemple, une personne qui réserve la maison en premer et elle est seule, la maison peut rester disponible pour acceuillir une autre personne ou un couple.
+* les autres utilisateurs voient que la maison est occupée, sans nécessairement connaître les détails privés ; Ils peuvent réserver si la maison est indiquée comme étant disponible.
+* Solenne et le demandeur reçoivent une notification.
+
+---
+
+# 4. Principe essentiel : maison privée
+
+L'application doit être pensée comme un **club privé / maison d'amis**, et non comme une plateforme commerciale.
+
+Il n'y a donc initialement :
+
+* aucun paiement ;
+* aucune commission ;
+* aucune facturation ;
+* aucune publication publique ;
+* aucun référencement public des disponibilités ;
+* aucun moteur de recherche public.
+
+Toutes les informations sont privées.
+
+---
+
+# 5. Utilisateurs et rôles
+
+Prévoir au minimum deux rôles.
+
+## ADMIN / PROPRIÉTAIRE
+
+Solenne est l'administratrice principale.
+
+Elle doit pouvoir :
+
+* gérer les utilisateurs ;
+* inviter des amis ;
+* créer/modifier/supprimer des événements ;
+* accepter ou refuser les demandes de séjour ;
+* consulter le calendrier ;
+* bloquer certaines dates ;
+* créer des périodes d'indisponibilité ;
+* gérer les chambres ;
+* gérer les bureaux ;
+* gérer les informations de la maison ;
+* gérer les activités ;
+* gérer les listes de choses à apporter ;
+* consulter l'historique des séjours ;
+* gérer les paramètres de l'application.
+
+## FRIEND / AMI
+
+Un ami authentifié peut :
+
+* consulter les événements auxquels il est invité ;
+* confirmer ou refuser sa présence ;
+* demander un séjour ;
+* consulter ses demandes ;
+* consulter ses séjours confirmés ;
+* voir le calendrier selon les droits qui lui sont accordés ;
+* participer à l'organisation d'un événement ;
+* indiquer ce qu'il apporte ;
+* gérer son profil.
+
+Prévoir une architecture permettant d'ajouter ultérieurement d'autres rôles.
+
+---
+
+# 6. Authentification
+
+L'application doit être privée.
+
+Un utilisateur ne doit pas pouvoir créer librement un compte.
+
+Le principe souhaité est :
+
+1. Solenne invite une personne.
+2. La personne reçoit un lien d'invitation.
+3. Elle crée son compte.
+4. Elle complète son profil.
+5. Elle peut ensuite accéder à l'application.
+
+Prévoir une authentification moderne et sécurisée.
+
+Si le projet possède déjà un système d'authentification, réutilise-le plutôt que d'en créer un nouveau.
+
+Prévoir idéalement :
+
+* email ;
+* mot de passe ;
+* récupération de mot de passe ;
+* session sécurisée ;
+* gestion des rôles ;
+* possibilité d'ajouter ultérieurement Google/Apple ou magic link.
+
+---
+
+# 7. Tableau de bord
+
+Après connexion, l'utilisateur doit arriver sur un dashboard clair.
+
+Le dashboard de Solenne doit notamment afficher :
+
+* prochains événements ;
+* prochaines demandes de séjour ;
+* prochains séjours confirmés ;
+* calendrier ;
+* alertes ;
+* demandes nécessitant son attention.
+
+Le dashboard d'un ami doit notamment afficher :
+
+* prochains événements auxquels il participe ;
+* ses demandes de séjour ;
+* ses séjours confirmés ;
+* événements à venir ;
+* informations importantes concernant la maison.
+
+---
+
+# 8. Calendrier
+
+Le calendrier est un élément central de l'application.
+
+Il doit permettre à Solenne de visualiser :
+
+* ses propres séjours ;
+* les séjours des amis ;
+* les événements ;
+* les périodes bloquées ;
+* les périodes disponibles.
+
+Prévoir plusieurs vues :
+
+* mois ;
+* semaine ;
+* éventuellement agenda.
+
+Utiliser des couleurs ou catégories différentes pour distinguer :
+
+* événement ;
+* séjour confirmé ;
+* indisponibilité ;
+* séjour personnel de Solenne.
+
+### Confidentialité
+
+Un ami ne doit pas forcément voir les détails privés concernant les autres personnes.
+
+Par exemple, il peut simplement voir :
+
+> Maison occupée
+
+sans voir :
+
+> "Jean vient avec sa femme et ses trois enfants."
+
+Cette logique doit être configurable.
+
+---
+
+# 9. Gestion des événements
+
+Solenne doit pouvoir créer un événement avec :
+
+* titre ;
+* description ;
+* date ;
+* heure de début ;
+* heure de fin ;
+* lieu ;
+* nombre maximum de participants ;
+* image ;
+* activités ;
+* informations pratiques ;
+* liste des invités.
+
+Exemples :
+
+* Weekend entre amis
+* Barbecue
+* Anniversaire
+* Randonnée
+* Weekend jeux de société
+* Journée piscine
+* Dîner
+* Télétravail collectif
+
+## RSVP
+
+Pour chaque invité :
+
+* Oui
+* Non
+* Peut-être
+
+Possibilité d'indiquer :
+
+* nombre d'accompagnants ;
+* enfants ;
+* heure d'arrivée ;
+* heure de départ ;
+* commentaire.
+
+---
+
+# 10. Organisation de ce que chacun apporte
+
+Une fonctionnalité importante est la possibilité de gérer une liste :
+
+### À apporter
+
+Exemple :
+
+* Viande → 2 personnes
+* Salades → 1 personne
+* Dessert → 2 personnes
+* Boissons → 2 personnes
+* Pain → 1 personne
+* Jeux de société → 1 personne
+
+Un utilisateur peut cliquer :
+
+> "Je m'en charge"
+
+et son nom apparaît automatiquement.
+
+Il doit être possible de définir une quantité ou un nombre de personnes responsables.
+
+Éviter les doublons.
+
+---
+
+# 11. Activités
+
+Chaque événement peut comporter plusieurs activités.
+
+Exemple :
+
+### Samedi
+
+10h00 — Petit déjeuner
+11h00 — Randonnée
+14h00 — Piscine
+18h00 — Apéritif
+20h00 — Barbecue
+22h00 — Jeux de société
+
+Chaque activité peut avoir :
+
+* titre ;
+* description ;
+* heure ;
+* durée ;
+* lieu ;
+* participants éventuels.
+
+---
+
+# 12. Demandes de séjour
+
+Créer une interface simple permettant à un ami de faire une demande.
+
+Formulaire :
+
+### Dates
+
+* arrivée ;
+* départ.
+
+### Participants
+
+* nombre d'adultes ;
+* nombre d'enfants ;
+* noms des participants.
+
+### Informations
+
+* raison du séjour ;
+* commentaire ;
+* besoins particuliers.
+
+### Validation
+
+Afficher avant envoi :
+
+> Votre demande sera envoyée à Solenne et ne sera confirmée qu'après son accord.
+
+---
+
+# 13. Gestion des disponibilités
+
+Il faut impérativement empêcher les conflits.
+
+{Modification Yassine} Une même période peut être réservée deux fois ;
+{Modification Yassine} Une même période ne peut pas être réservée si elle est bloquée;
+{Modification Yassine} Une même période ne peut pas être utilisée pour deux événements.
+
+Avant de créer ou accepter une réservation, vérifier automatiquement les conflits.
+
+Prévoir également des règles configurables :
+
+* nombre maximum de personnes ;
+* durée maximale d'un séjour ;
+* délai minimum avant réservation ;
+* délai maximum de réservation à l'avance ;
+* jours éventuellement interdits ;
+* chambres disponibles ;
+* périodes réservées à Solenne.
+
+---
+
+# 14. Gestion des chambres
+
+La maison possède plusieurs chambres.
+
+Prévoir une section permettant à Solenne de définir :
+
+* nom de la chambre ;
+* description ;
+* nombre de couchages ;
+* type de lits ;
+* photos ;
+* équipements ;
+* disponibilité.
+
+Exemple :
+
+> Chambre bleue
+> 1 lit double
+> 2 personnes
+
+Cela permettra plus tard d'affecter éventuellement les chambres aux personnes lors d'un séjour.
+
+Cette fonctionnalité peut être préparée même si elle n'est pas obligatoire dans la première version.
+
+---
+
+# 15. Les deux bureaux
+
+La maison possède deux bureaux.
+
+Ils doivent pouvoir être décrits dans l'application.
+
+Exemple :
+
+### Bureau 1
+
+* bureau ;
+* écran ;
+* Wi-Fi ;
+* imprimante.
+
+### Bureau 2
+
+* bureau ;
+* écran ;
+* fauteuil.
+
+L'objectif est notamment de permettre à Solenne et éventuellement à ses amis de télétravailler.
+
+À terme, on pourrait permettre à un utilisateur de demander :
+
+> "Je souhaite utiliser le bureau 1 pendant mon séjour."
+
+Préparer l'architecture pour permettre cette évolution.
+
+---
+
+# 16. Notifications
+
+Prévoir un système de notifications.
+
+Au minimum :
+
+### Pour Solenne
+
+* nouvelle demande de séjour ;
+* demande annulée ;
+* nouvelle inscription à un événement ;
+* changement de participation ;
+* commentaire important.
+
+### Pour les amis
+
+* invitation à un événement ;
+* événement modifié ;
+* demande de séjour acceptée ;
+* demande refusée ;
+* demande modifiée ;
+* rappel avant séjour ;
+* rappel avant événement.
+
+Prévoir une architecture permettant d'utiliser :
+
+* notifications dans l'application ;
+* email ;
+* WhatsApp
+
+---
+
+# 17. Messages / commentaires
+
+Il serait intéressant de prévoir une communication légère autour des événements.
+
+Par exemple :
+
+> "Est-ce que quelqu'un peut apporter une enceinte ?"
+
+ou :
+
+> "J'arriverai vers 18h."
+
+Prévoir éventuellement un fil de discussion par événement.
+
+Ne pas créer immédiatement une messagerie privée complexe.
+
+---
+
+# 18. Profil utilisateur
+
+Chaque utilisateur doit pouvoir gérer :
+
+* prénom ;
+* nom ;
+* photo ;
+* email ;
+* téléphone ;
+* préférences ;
+* nombre éventuel d'enfants ;
+* informations utiles.
+
+Solenne doit pouvoir consulter ces informations.
+
+Prévoir également une notion de relation :
+
+* ami proche ;
+* famille ;
+* connaissance ;
+* autre.
+
+Cette information peut être utile plus tard pour gérer les droits.
+
+---
+
+# 19. Historique
+
+Solenne doit pouvoir consulter :
+
+* les anciens événements ;
+* les anciens séjours ;
+* les demandes refusées ;
+* les demandes annulées ;
+* les personnes ayant séjourné dans la maison.
+
+Prévoir des filtres :
+
+* date ;
+* utilisateur ;
+* statut ;
+* événement.
+
+---
+
+# 20. Interface utilisateur
+
+L'application doit être :
+
+* moderne ;
+* élégante ;
+* chaleureuse ;
+* simple ;
+* très intuitive ;
+* responsive ;
+* parfaitement utilisable sur smartphone.
+
+Le design doit évoquer :
+
+**maison de campagne + convivialité + amis + nature + confort**
+
+Éviter l'apparence d'un logiciel de gestion froid ou d'une plateforme Airbnb.
+
+L'interface doit donner envie d'utiliser la maison et de participer aux événements.
+
+Prévoir notamment :
+
+* photos de la maison ;
+* grandes cartes ;
+* calendrier visuel ;
+* icônes simples ;
+* informations importantes immédiatement visibles.
+
+---
+
+# 21. Page d'accueil après connexion
+
+Créer une page d'accueil personnalisée avec par exemple :
+
+> Bienvenue chez Solenne 🌿
+
+Puis :
+
+### Prochain événement
+
+**Weekend barbecue**
+12–13 septembre
+8 participants
+
+### Votre prochain séjour
+
+**18–20 septembre**
+
+### Maison
+
+**Disponible**
+
+### À venir
+
+Liste chronologique des prochaines activités.
+
+---
+
+# 22. Administration
+
+Créer un espace d'administration permettant à Solenne de gérer :
+
+### Utilisateurs
+
+* créer ;
+* inviter ;
+* modifier ;
+* désactiver ;
+* supprimer ;
+* changer les rôles.
+
+### Maison
+
+* informations ;
+* photos ;
+* chambres ;
+* bureaux ;
+* équipements ;
+* règles de la maison.
+
+### Calendrier
+
+* réservations ;
+* événements ;
+* indisponibilités.
+
+### Paramètres
+
+* règles de réservation ;
+* notifications ;
+* confidentialité ;
+* paramètres généraux.
+
+---
+
+# 23. Règles de la maison
+
+Créer une section :
+
+## Les règles de la maison
+
+Exemples :
+
+* respecter les voisins ;
+* pas de fête non autorisée ;
+* animaux autorisés ou non ;
+* fumer interdit ;
+* nombre maximum de personnes ;
+* horaires de calme ;
+* utilisation de la piscine ;
+* nettoyage ;
+* déchets ;
+* clés ;
+* chauffage ;
+* départ.
+
+Ces règles doivent être configurables par Solenne.
+
+Elles peuvent être affichées au moment de la confirmation d'un séjour.
+
+Prévoir éventuellement une case :
+
+> J'ai lu et j'accepte les règles de la maison.
+
+---
+
+# 24. Architecture technique
+
+Avant de commencer à coder :
+
+1. Analyse le projet existant.
+2. Identifie la stack technique utilisée.
+3. Identifie les contraintes existantes.
+4. Ne remplace pas inutilement les technologies existantes.
+5. Propose une architecture propre et évolutive.
+6. Vérifie les dépendances existantes.
+
+Si le projet est vide, propose une stack moderne adaptée à ce type d'application.
+
+Priorités :
+
+* simplicité ;
+* sécurité ;
+* maintenabilité ;
+* responsive ;
+* évolutivité.
+
+---
+
+# 25. Base de données
+
+Prévoir une structure de données propre pour notamment :
+
+* users ;
+* roles ;
+* invitations ;
+* house ;
+* rooms ;
+* offices ;
+* events ;
+* event_participants ;
+* event_activities ;
+* event_items ;
+* stay_requests ;
+* stays ;
+* blocked_periods ;
+* notifications ;
+* comments ;
+* house_rules.
+
+Éviter de sur-concevoir la base de données, mais prévoir suffisamment de flexibilité pour les futures évolutions.
+
+---
+
+# 26. Sécurité et confidentialité
+
+La confidentialité est essentielle.
+
+L'application contient des informations personnelles et des informations sur les déplacements des personnes.
+
+Il faut donc :
+
+* sécuriser l'authentification ;
+* contrôler les permissions côté serveur ;
+* ne jamais faire confiance uniquement au frontend ;
+* protéger les données personnelles ;
+* empêcher un utilisateur de consulter les données auxquelles il n'a pas accès ;
+* journaliser les actions importantes de l'administrateur ;
+* protéger les invitations ;
+* sécuriser les tokens ;
+* prévoir les bonnes pratiques RGPD.
+
+---
+
+# 27. Évolutions possibles
+
+L'architecture doit permettre plus tard d'ajouter :
+
+* cagnotte ;
+* ménage ;
+* gestion des clés ;
+* serrure connectée ;
+* code d'accès temporaire ;
+* météo ;
+* activités autour de la maison ;
+* recommandations touristiques ;
+* photos partagées ;
+* album photo ;
+* réservation des bureaux ;
+* réservation des chambres ;
+* intégration Google Calendar / Apple Calendar ;
+* notifications WhatsApp ;
+* plusieurs maisons ;
+* gestion de groupes d'amis.
+
+
+
+---
+
+# 28. Philosophie du produit
+
+Le produit doit donner l'impression d'un :
+
+> **"Carnet numérique de la maison de Solenne"**
+
+et non d'un logiciel de réservation.
+
+L'objectif est de faciliter la vie de Solenne et de rendre les séjours plus agréables pour ses amis.
+
+Le produit doit être :
+
+**simple > complet**
+
+**convivial > administratif**
+
+**visuel > complexe**
+
+**privé > public**
+
+---
+
+# 29. Méthode de travail demandée à Claude Code
+
+NE COMMENCE PAS immédiatement à coder.
+
+Commence par :
+
+### Étape 1 — Analyse
+
+Analyse le repository actuel et explique :
+
+* architecture existante ;
+* technologies ;
+* structure ;
+* fonctionnalités existantes ;
+* problèmes éventuels ;
+* ce qui peut être réutilisé.
+
+### Étape 2 — Proposition
+
+Propose :
+
+* architecture fonctionnelle ;
+* architecture technique ;
+* modèle de données ;
+* principaux écrans ;
+* parcours utilisateurs ;
+* stratégie d'authentification ;
+* gestion des permissions.
+
+### Étape 3 — MVP
+
+Définis un MVP permettant de mettre rapidement l'application en production.
+
+Le MVP doit au minimum permettre :
+
+1. authentification ;
+2. invitation d'un ami ;
+3. gestion des utilisateurs ;
+4. calendrier ;
+5. création d'événements ;
+6. inscription à un événement ;
+7. liste "qui apporte quoi" ;
+8. demande de séjour ;
+9. validation/refus par Solenne ;
+10. gestion des conflits de dates ;
+11. notifications ;
+12. dashboard.
+
+### Étape 4 — Implémentation
+
+Après validation de l'architecture :
+
+* implémente fonctionnalité par fonctionnalité ;
+* garde le code propre ;
+* crée les tests nécessaires ;
+* vérifie les permissions ;
+* vérifie les cas limites ;
+* teste les parcours principaux.
+
+### Étape 5 — UX
+
+Une fois les fonctionnalités principales terminées :
+
+* améliore le design ;
+* vérifie le responsive ;
+* vérifie l'expérience mobile ;
+* vérifie les messages d'erreur ;
+* vérifie les états vides ;
+* vérifie les états de chargement ;
+* vérifie les confirmations.
+
+---
+
+# 30. Cas limites à gérer
+
+Ne pas oublier notamment :
+
+* deux personnes demandent les mêmes dates ;
+* Solenne accepte une demande alors qu'une autre vient d'être acceptée ;
+* un utilisateur annule son séjour ;
+* Solenne annule un séjour ;
+* un événement est déplacé ;
+* un événement est annulé ;
+* un invité change sa réponse ;
+* un événement dépasse sa capacité maximale ;
+* une personne invite un accompagnant ;
+* une personne n'est plus autorisée à utiliser la maison ;
+* une date est bloquée après une demande ;
+* une demande couvre une période déjà occupée.
+
+Tous ces cas doivent être gérés proprement.
+
+---
+
+# 31. Qualité du code
+
+Respecte les principes suivants :
+
+* code lisible ;
+* composants réutilisables ;
+* séparation claire des responsabilités ;
+* validation côté serveur ;
+* gestion propre des erreurs ;
+* logs utiles ;
+* tests automatisés lorsque pertinent ;
+* pas de duplication inutile ;
+* pas de fonctionnalités "hackées" uniquement pour faire fonctionner la démo.
+
+Avant chaque grosse modification, vérifie l'impact sur les fonctionnalités existantes.
+
+---
+
+# 32. Documentation
+
+Maintiens une documentation minimale du projet comprenant :
+
+* installation ;
+* configuration ;
+* variables d'environnement ;
+* base de données ;
+* lancement en développement ;
+* tests ;
+* déploiement ;
+* comptes de démonstration si nécessaire.
+
+---
+
+# 33. Priorité absolue
+
+Si tu dois choisir entre ajouter beaucoup de fonctionnalités et avoir une expérience utilisateur excellente, privilégie l'expérience utilisateur.
+
+L'application doit être suffisamment simple pour que Solenne et ses amis puissent l'utiliser sans aucune formation.
+
+Commence donc par analyser le projet et propose-moi d'abord :
+
+1. l'architecture recommandée ;
+2. le modèle de données ;
+3. la liste des écrans ;
+4. le parcours utilisateur ;
+5. le découpage du MVP en étapes de développement.
+
+**Ne commence pas l'implémentation avant d'avoir présenté cette analyse.**

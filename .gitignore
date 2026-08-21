@@ -1,0 +1,31 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.vercel/
+
+.env
+.env.local
+.env.*.local
+
+*.log
+npm-debug.log*
+.DS_Store
+
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+tests/e2e/.session/
+
+# Images téléversées en développement
+/.televersements/
+/.courriers/
+
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Client Prisma : régénéré à l'installation (`postinstall`)
+src/generated/

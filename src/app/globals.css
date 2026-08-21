@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/*
+ * Jetons du carnet de la maison.
+ * Source de vérité : src/components/ui/tokens.ts — les deux fichiers doivent
+ * rester alignés, ce que vérifie le test UI-001.
+ */
+@theme {
+  --color-lin: #faf6ef;
+  --color-lin-fonce: #f2ebe0;
+  --color-lin-profond: #e7ddcc;
+
+  --color-encre: #2a2622;
+  --color-encre-doux: #5c544b;
+
+  --color-olive: #5a6b4a;
+  --color-olive-fonce: #46543a;
+  --color-terracotta: #b5522f;
+  --color-terracotta-fonce: #8f3f23;
+  --color-bois: #7e6444;
+  --color-bois-clair: #b99b72;
+
+  --font-titre: var(--police-titre), ui-serif, Georgia, serif;
+  --font-corps: var(--police-corps), ui-sans-serif, system-ui, sans-serif;
+
+  /*
+   * Arrondis — échelle unique, réduite de 50 % le 21/08/2026 sur retour de
+   * Yassine (validation visuelle L2). Aucun arrondi n'est écrit en dur dans
+   * un composant : tout passe par ces six jetons, pour qu'un nouveau réglage
+   * reste un changement de six nombres.
+   */
+  --radius-puce: 0.25rem;
+  --radius-menu: 0.375rem;
+  --radius-champ: 0.5rem;
+  --radius-carte: 0.625rem;
+  /* Pastille de 44 px : arrondi effectif 22 px, ramené à 11 px. */
+  --radius-bouton: 0.6875rem;
+  --radius-feuille: 0.875rem;
+
+  --shadow-douce: 0 1px 2px rgb(42 38 34 / 0.04), 0 8px 24px rgb(42 38 34 / 0.06);
+  --shadow-relief: 0 2px 4px rgb(42 38 34 / 0.06), 0 16px 40px rgb(42 38 34 / 0.1);
+
+  /* Hauteur réservée à la navigation basse, marge de sécurité iOS comprise. */
+  --spacing-nav-basse: 4.5rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-lin);
+    color: var(--color-encre);
+    font-family: var(--font-corps);
+    /* UI-R3 : rien ne déborde horizontalement, jamais. */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-titre);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* UI-R6 : le focus est toujours visible, y compris sur fond sombre. */
+  :focus-visible {
+    outline: 2px solid var(--color-olive-fonce);
+    outline-offset: 2px;
+    border-radius: 0.1875rem;
+  }
+
+  ::selection {
+    background-color: var(--color-lin-profond);
+  }
+}
+
+@layer utilities {
+  /* UI-R2 : toute cible tactile fait au moins 44 × 44 px. */
+  .cible-tactile {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .zone-sure-basse {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

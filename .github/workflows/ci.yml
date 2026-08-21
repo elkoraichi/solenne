@@ -1,0 +1,126 @@
+name: Intégration continue
+
+# Chaque étape est bloquante : aucune n'est neutralisée.
+# Une fusion n'est possible que si l'ensemble est au vert (SETUP-011).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/solenne_ci
+  TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/solenne_ci_test
+  AUTH_SECRET: secret-d-integration-continue-0123456789abcdef
+  APP_URL: http://localhost:3000
+
+jobs:
+  verification:
+    name: Types, style, tests et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: solenne_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Créer la base de test
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE solenne_ci_test'
+
+      - name: Générer le client Prisma
+        run: npm run db:generate
+
+      - name: Appliquer les migrations
+        run: npm run db:deploy
+
+      - name: Vérifier les types
+        run: npm run typecheck
+
+      - name: Vérifier le style
+        run: npm run lint
+
+      - name: Tests unitaires et d'intégration
+        run: npm test
+
+      - name: Build de production
+        run: npm run build
+
+  parcours:
+    name: Parcours end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: verification
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: solenne_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Installer les navigateurs
+        run: npx playwright install --with-deps chromium
+
+      - name: Préparer la base
+        run: |
+          npm run db:generate
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Parcours Playwright
+        run: npm run test:e2e
+
+      - name: Conserver le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7

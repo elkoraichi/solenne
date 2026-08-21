@@ -1,0 +1,849 @@
+# INSTRUCTION IMPORTANTE — NE PAS DÉMARRER LE DÉVELOPPEMENT
+
+J'ai bien pris connaissance de ton document d'analyse, de l'architecture proposée, des décisions arrêtées et du découpage en lots.
+
+Le document est suffisamment avancé pour passer à l'étape suivante, mais **je ne veux pas que tu démarres le lot 0 pour le moment**.
+
+## 1. Consigne immédiate
+
+**Ne lance aucune implémentation.**
+
+Ne crée pas encore :
+
+* le repository Git ;
+* le projet Next.js ;
+* le schéma Prisma ;
+* la base de données ;
+* les composants UI ;
+* l'authentification ;
+* ni aucun autre élément de code applicatif.
+
+Je veux d'abord que nous définissions précisément **COMMENT le projet sera développé, testé, vérifié et validé**.
+
+---
+
+# 2. Une contrainte très importante me concernant
+
+Je veux que tu prennes en compte un élément essentiel :
+
+**Je ne suis pas développeur.**
+
+Je ne connais pas suffisamment :
+
+* Next.js ;
+* TypeScript ;
+* React ;
+* Prisma ;
+* PostgreSQL ;
+* Auth.js ;
+* Vercel ;
+* les tests automatisés ;
+* les problématiques de sécurité ;
+* ni l'architecture logicielle.
+
+Je ne peux donc pas être considéré comme une personne capable de :
+
+* déboguer le code ;
+* identifier une erreur technique ;
+* corriger un problème ;
+* analyser une stack trace ;
+* vérifier la sécurité du code ;
+* ou compléter manuellement une fonctionnalité.
+
+### Conséquence
+
+Le projet doit être conçu avec le principe suivant :
+
+> **Je dois pouvoir utiliser l'application sans avoir à intervenir techniquement dans son développement ou son fonctionnement.**
+
+Tu dois donc prendre la responsabilité de détecter et corriger toi-même les problèmes techniques que tu rencontres pendant le développement.
+
+Je ne veux pas d'une situation où tu me dirais :
+
+> "Cette erreur apparaît, peux-tu la corriger ?"
+
+ou :
+
+> "Il faut modifier ce fichier manuellement."
+
+Si un problème est détecté, **tu dois chercher sa cause, le corriger et relancer les tests**.
+
+Si tu as besoin d'une décision fonctionnelle de ma part, pose-moi la question. Mais ne me demande pas de résoudre un problème technique.
+
+---
+
+# 3. Créer un document : "Mode Operatoire.md"
+
+Avant tout développement, crée un document de référence intitulé : "Mode Operatoire.md"
+
+Ce document deviendra notre **référence obligatoire pendant toute la réalisation du projet**.
+
+Il devra décrire la manière dont tu vas construire, tester, sécuriser et valider l'application.
+
+Ce document doit être suffisamment précis pour qu'à n'importe quel moment nous puissions savoir :
+
+* ce qui a été développé ;
+* ce qui reste à développer ;
+* ce qui a été testé ;
+* ce qui a échoué ;
+* ce qui a été corrigé ;
+* ce qui est validé ;
+* et ce qui doit encore être vérifié.
+
+---
+
+# 4. Le document doit être organisé par modules
+
+Je veux que le projet soit décomposé en **modules fonctionnels indépendants et testables**.
+
+Ne te limite pas aux 8 lots actuellement proposés.
+
+Les lots peuvent rester notre découpage général, mais chaque lot doit être lui-même découpé en modules.
+
+Par exemple, à titre indicatif :
+
+### Module Identité
+
+* création de l'utilisateur ;
+* invitation ;
+* activation d'une invitation ;
+* connexion ;
+* déconnexion ;
+* mot de passe oublié ;
+* changement de mot de passe ;
+* gestion du profil ;
+* gestion des rôles ;
+* désactivation d'un compte.
+
+### Module Maison
+
+* informations de la maison ;
+* capacité ;
+* photos ;
+* chambres ;
+* bureaux ;
+* équipements ;
+* règles de la maison.
+
+### Module Calendrier
+
+* affichage ;
+* disponibilité ;
+* périodes bloquées ;
+* confidentialité ;
+* événements ;
+* séjours.
+
+### Module Séjours
+
+* demande ;
+* validation ;
+* refus ;
+* annulation ;
+* exclusivité ;
+* cohabitation ;
+* capacité ;
+* conflits ;
+* etc.
+
+### Module Événements
+
+* création ;
+* invitation ;
+* RSVP ;
+* accompagnants ;
+* couchage ;
+* activités ;
+* liste "à apporter" ;
+* commentaires.
+
+### Module Notifications
+
+* notifications internes ;
+* emails ;
+* préférences ;
+* rappels.
+
+Et ainsi de suite.
+
+**Cette liste n'est qu'un exemple.**
+
+Tu dois déterminer toi-même le découpage optimal.
+
+---
+
+# 5. Chaque module doit avoir sa propre fiche
+
+Pour CHAQUE module, le Mode Opératoire devra préciser :
+
+## 5.1 Objectif
+
+Ce que le module doit permettre de faire.
+
+## 5.2 Fonctionnalités
+
+Liste précise des fonctionnalités du module.
+
+## 5.3 Données manipulées
+
+Tables, entités, relations et données concernées.
+
+## 5.4 Règles métier
+
+Toutes les règles qui doivent être respectées.
+
+## 5.5 Permissions
+
+Ce que peut faire :
+
+* un visiteur ;
+* un ami ;
+* Solenne.
+
+Et surtout ce qu'un utilisateur **ne doit jamais pouvoir faire**.
+
+## 5.6 Dépendances
+
+Préciser de quels autres modules il dépend.
+
+## 5.7 Cas nominaux
+
+Décrire les scénarios normaux.
+
+## 5.8 Cas limites
+
+Décrire les situations inhabituelles ou dangereuses.
+
+## 5.9 Risques
+
+Identifier les risques techniques, fonctionnels et de sécurité.
+
+## 5.10 Critères d'acceptation
+
+Définir précisément ce qui permettra de considérer le module comme terminé.
+
+---
+
+# 6. LES TESTS DOIVENT ÊTRE ÉCRITS AVANT LE CODE
+
+C'est une exigence importante.
+
+Pour chaque module :
+
+> **Les tests doivent être définis AVANT le développement du module.**
+
+Je veux voir dans le Mode Opératoire :
+
+* les tests unitaires ;
+* les tests d'intégration ;
+* les tests de sécurité ;
+* les tests fonctionnels ;
+* les tests des cas limites ;
+* les tests d'erreur.
+
+Tu dois rédiger les **test cases avant de commencer à coder**.
+
+---
+
+# 7. Format des test cases
+
+Chaque test doit avoir un identifiant unique.
+
+Par exemple :
+
+`AUTH-001`
+
+`AUTH-002`
+
+`STAY-001`
+
+`STAY-002`
+
+`EVENT-001`
+
+etc.
+
+Chaque test doit préciser :
+
+### ID
+
+Identifiant unique.
+
+### Objectif
+
+Ce que le test vérifie.
+
+### Préconditions
+
+Ce qui doit être vrai avant le test.
+
+### Données d'entrée
+
+Les données utilisées.
+
+### Étapes
+
+Les actions à effectuer.
+
+### Résultat attendu
+
+Le résultat précis attendu.
+
+### Criticité
+
+* CRITICAL
+* HIGH
+* MEDIUM
+* LOW
+
+### Type
+
+* Unit
+* Integration
+* E2E
+* Security
+* Regression
+
+---
+
+# 8. Exemple du niveau de précision attendu
+
+Par exemple, pour le moteur de disponibilité :
+
+### STAY-001 — Demande dans une période libre
+
+**Précondition :**
+
+Maison avec capacité maximale de 10 personnes.
+
+Aucun séjour confirmé.
+
+**Action :**
+
+Un ami demande un séjour pour 4 personnes du 10 au 12 septembre.
+
+**Résultat attendu :**
+
+La demande est acceptée par le moteur comme compatible.
+
+---
+
+### STAY-002 — Capacité dépassée
+
+**Précondition :**
+
+8 personnes occupent déjà la maison.
+
+Capacité maximale : 10.
+
+**Action :**
+
+Un ami demande un séjour pour 4 personnes.
+
+**Résultat attendu :**
+
+La demande est refusée.
+
+Code :
+
+`CAPACITY_EXCEEDED`
+
+Le message utilisateur doit être en français.
+
+---
+
+### STAY-003 — Cohabitation autorisée
+
+**Précondition :**
+
+Un séjour de 4 personnes est confirmé.
+
+Capacité maximale : 10.
+
+**Action :**
+
+Un deuxième ami demande 3 personnes sur les mêmes dates.
+
+**Résultat attendu :**
+
+La demande est compatible.
+
+Occupation totale : 7 / 10.
+
+---
+
+### STAY-004 — Séjour exclusif
+
+**Précondition :**
+
+Un séjour exclusif est confirmé.
+
+**Action :**
+
+Un autre ami demande un séjour sur les mêmes dates.
+
+**Résultat attendu :**
+
+Refus.
+
+---
+
+Ce niveau de précision est attendu pour tous les modules.
+
+---
+
+# 9. Tests de sécurité
+
+Je veux une section spécifique dédiée à la sécurité.
+
+Ne considère jamais qu'une fonctionnalité est sécurisée simplement parce qu'elle fonctionne normalement.
+
+Pour chaque fonctionnalité sensible, prévois notamment des tests visant à vérifier :
+
+* accès non authentifié ;
+* accès avec un compte ami ;
+* accès avec un compte administrateur ;
+* accès à une donnée appartenant à un autre utilisateur ;
+* modification d'une donnée appartenant à quelqu'un d'autre ;
+* contournement des permissions côté frontend ;
+* appels directs aux Server Actions ;
+* manipulation des paramètres ;
+* accès à des URLs privées ;
+* fuite de données ;
+* sessions expirées ;
+* comptes désactivés ;
+* tokens d'invitation expirés ;
+* tokens déjà utilisés ;
+* tokens révoqués ;
+* tentatives répétées de connexion ;
+* récupération de mot de passe.
+
+La sécurité doit être vérifiée **côté serveur**, pas uniquement dans l'interface.
+
+---
+
+# 10. Tests du moteur de disponibilité
+
+Je veux une attention particulière sur ce module.
+
+Comme tu l'as identifié toi-même, le moteur de disponibilité est le cœur du système.
+
+Toutes les règles suivantes doivent faire l'objet de tests explicites :
+
+* capacité ;
+* séjour exclusif ;
+* séjour non exclusif ;
+* cohabitation ;
+* événements ;
+* dormeurs d'événement ;
+* événements + séjours ;
+* périodes bloquées ;
+* chevauchements ;
+* départ et arrivée le même jour ;
+* demandes simultanées ;
+* annulation ;
+* changement de capacité ;
+* demande devenue incompatible entre sa création et sa validation.
+
+Le moteur doit être testé sur les combinaisons de règles importantes, et pas seulement sur chaque règle isolément.
+
+---
+
+# 11. Tests de non-régression
+
+Une règle fondamentale doit être ajoutée au Mode Opératoire :
+
+> **Après chaque modification importante, l'ensemble des tests déjà existants doit être exécuté.**
+
+Une fonctionnalité nouvelle ne doit jamais casser une fonctionnalité précédente.
+
+Je veux donc un mécanisme de tests de régression automatique.
+
+---
+
+# 12. Tests E2E du produit
+
+À la fin du projet, tu dois pouvoir lancer une batterie complète de tests reproduisant les parcours réels des utilisateurs.
+
+Au minimum :
+
+### Parcours 1
+
+Solenne invite un ami.
+
+### Parcours 2
+
+L'ami accepte l'invitation et crée son compte.
+
+### Parcours 3
+
+L'ami se connecte.
+
+### Parcours 4
+
+Solenne crée un événement.
+
+### Parcours 5
+
+L'ami reçoit l'invitation et répond.
+
+### Parcours 6
+
+L'ami indique qu'il dort sur place.
+
+### Parcours 7
+
+L'ami indique ce qu'il apporte.
+
+### Parcours 8
+
+L'ami demande un séjour.
+
+### Parcours 9
+
+Solenne reçoit la demande.
+
+### Parcours 10
+
+Solenne accepte la demande.
+
+### Parcours 11
+
+Le séjour apparaît correctement dans le calendrier.
+
+### Parcours 12
+
+Un autre ami demande les mêmes dates.
+
+### Parcours 13
+
+Le moteur calcule correctement la capacité.
+
+### Parcours 14
+
+Solenne refuse une demande.
+
+### Parcours 15
+
+Un séjour est annulé.
+
+### Parcours 16
+
+Un événement est déplacé ou annulé.
+
+### Parcours 17
+
+Un utilisateur désactivé tente d'accéder à l'application.
+
+### Parcours 18
+
+Un utilisateur tente d'accéder à des informations auxquelles il n'a pas droit.
+
+Ces tests doivent être automatisés autant que possible.
+
+---
+
+# 13. Tests responsive
+
+Comme l'application est destinée à être utilisée principalement sur smartphone, le Mode Opératoire doit également prévoir des tests sur :
+
+* desktop ;
+* tablette ;
+* smartphone.
+
+Vérifier notamment :
+
+* navigation ;
+* formulaires ;
+* calendrier ;
+* modales ;
+* boutons ;
+* affichage des erreurs ;
+* chargements ;
+* interactions tactiles.
+
+---
+
+# 14. Tests avant mise en production
+
+Créer une checklist obligatoire avant chaque mise en production.
+
+Aucune mise en production ne doit être considérée comme terminée tant que :
+
+* les tests unitaires passent ;
+* les tests d'intégration passent ;
+* les tests E2E passent ;
+* les tests de sécurité passent ;
+* les tests de régression passent ;
+* le build de production passe ;
+* les migrations de base de données sont vérifiées ;
+* les variables d'environnement sont vérifiées ;
+* les erreurs critiques sont absentes ;
+* les logs ne montrent pas d'erreurs bloquantes.
+
+---
+
+# 15. Critère de qualité très important
+
+Je ne veux pas que tu considères :
+
+> "Le code compile"
+
+comme synonyme de :
+
+> "La fonctionnalité est terminée."
+
+Une fonctionnalité n'est terminée que lorsque :
+
+1. elle est développée ;
+2. elle respecte les règles métier ;
+3. ses tests passent ;
+4. ses cas limites sont testés ;
+5. ses permissions sont testées ;
+6. les tests de régression passent ;
+7. son comportement mobile est vérifié ;
+8. aucune erreur critique n'est présente.
+
+---
+
+# 16. Gestion des erreurs
+
+Je veux que l'application soit conçue pour **échouer proprement**.
+
+Aucune erreur technique ne doit être exposée directement à l'utilisateur.
+
+L'utilisateur doit recevoir un message clair en français.
+
+Par exemple, ne jamais afficher :
+
+> `PrismaClientKnownRequestError`
+
+mais un message du type :
+
+> "Une erreur est survenue. Votre demande n'a pas été enregistrée. Vous pouvez réessayer."
+
+L'erreur technique doit être enregistrée dans les logs pour permettre son diagnostic.
+
+---
+
+# 17. Auto-diagnostic
+
+Pendant le développement, si tu rencontres :
+
+* une erreur de compilation ;
+* une erreur TypeScript ;
+* une erreur Prisma ;
+* une erreur SQL ;
+* une erreur de test ;
+* une erreur E2E ;
+* une erreur de sécurité ;
+* une erreur de build ;
+* une erreur runtime ;
+
+tu dois :
+
+1. identifier la cause ;
+2. corriger le problème ;
+3. relancer le test concerné ;
+4. relancer les tests de régression ;
+5. vérifier qu'aucune nouvelle erreur n'a été introduite.
+
+Ne me sollicite que si le problème nécessite **une décision fonctionnelle ou un choix que je suis le seul à pouvoir faire**.
+
+---
+
+# 18. Rapport de fin de module
+
+À la fin de chaque module, tu dois produire un petit rapport :
+
+### MODULE : XXX
+
+**Statut :** ✅ VALIDÉ / ❌ NON VALIDÉ
+
+**Fonctionnalités réalisées :**
+
+...
+
+**Tests prévus :** XX
+
+**Tests réussis :** XX
+
+**Tests échoués :** XX
+
+**Tests corrigés :** XX
+
+**Tests restant à effectuer :** XX
+
+**Problèmes rencontrés :**
+
+...
+
+**Corrections réalisées :**
+
+...
+
+**Impact éventuel sur les autres modules :**
+
+...
+
+---
+
+# 19. Rapport final avant mise en production
+
+À la fin du développement, je veux un rapport global comprenant :
+
+* nombre de modules ;
+* nombre de tests unitaires ;
+* nombre de tests d'intégration ;
+* nombre de tests E2E ;
+* nombre de tests de sécurité ;
+* nombre de tests de régression ;
+* nombre total de tests ;
+* nombre de tests réussis ;
+* nombre de tests échoués ;
+* problèmes rencontrés ;
+* problèmes corrigés ;
+* éventuels problèmes résiduels ;
+* vérification de la sécurité ;
+* vérification du responsive ;
+* vérification de la base de données ;
+* vérification du déploiement.
+
+---
+
+# 20. Principe "zéro erreur critique"
+
+Je comprends qu'aucun logiciel complexe ne peut être garanti mathématiquement "sans aucun bug".
+
+En revanche, je veux que notre critère de mise en production soit :
+
+> **Aucune erreur critique ou haute priorité connue et non corrigée.**
+
+Et :
+
+> **Tous les tests obligatoires doivent être au vert avant la mise en production.**
+
+S'il existe un problème connu non corrigé, tu dois me le signaler explicitement et expliquer pourquoi.
+
+---
+
+# 21. Le Mode Opératoire doit être versionné
+
+Le Mode Opératoire doit être considéré comme un document vivant.
+
+Il devra être mis à jour si :
+
+* une règle métier change ;
+* un module est ajouté ;
+* un test est ajouté ;
+* un test est modifié ;
+* une décision d'architecture change ;
+* une nouvelle vulnérabilité est identifiée ;
+* une fonctionnalité est déplacée du MVP au post-MVP.
+
+Chaque modification importante doit être identifiable.
+
+---
+
+# 22. Ce que je te demande maintenant
+
+**NE CODE RIEN.**
+
+Je veux d'abord que tu me proposes une **version LIGHT du Mode Opératoire**.
+
+Cette version Light doit contenir uniquement :
+
+1. les grands modules du projet ;
+2. l'ordre dans lequel ils seront développés ;
+3. les dépendances entre modules ;
+4. les principaux objectifs de chaque module ;
+5. les principaux tests qui seront préparés pour chaque module ;
+6. les grands tests E2E du produit final ;
+7. la stratégie générale de sécurité ;
+8. la stratégie de non-régression ;
+9. les critères de validation d'un module ;
+10. les critères de validation du produit final.
+
+**Ne rédige pas encore les centaines de test cases détaillés.**
+
+Je veux d'abord valider avec toi la structure générale et la méthode.
+
+Après ma validation de cette version Light, tu produiras la **version complète du Mode Opératoire**, avec :
+
+* la description détaillée de chaque module ;
+* les règles métier ;
+* les dépendances ;
+* les cas nominaux ;
+* les cas limites ;
+* les risques ;
+* les critères d'acceptation ;
+* les tests unitaires ;
+* les tests d'intégration ;
+* les tests de sécurité ;
+* les tests E2E ;
+* les tests de non-régression ;
+* et les tests finaux du produit.
+
+**Et seulement après validation de cette version complète, nous commencerons le développement.**
+
+---
+
+# 23. Ordre impératif
+
+Respecte strictement cet ordre :
+
+**1. Analyse existante — DÉJÀ FAITE**
+
+↓
+
+**2. Version Light du Mode Opératoire — MAINTENANT**
+
+↓
+
+**3. Validation de ma part**
+
+↓
+
+**4. Version complète du Mode Opératoire**
+
+↓
+
+**5. Validation de ma part**
+
+↓
+
+**6. Développement module par module**
+
+↓
+
+**7. Tests automatisés**
+
+↓
+
+**8. Tests de régression**
+
+↓
+
+**9. Tests E2E**
+
+↓
+
+**10. Audit sécurité**
+
+↓
+
+**11. Validation finale**
+
+↓
+
+**12. Mise en production**
+
+Ne saute aucune de ces étapes.
+
+### Consigne finale
+
+**Ne démarre donc pas le lot 0.**
+
+Commence uniquement par me présenter la **Version Light du Mode Opératoire**, en tenant compte de l'analyse et des décisions déjà arrêtées.
+
+Je veux d'abord valider la méthode avant que tu écrives une seule ligne de code applicatif.
