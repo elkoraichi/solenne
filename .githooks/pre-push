@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Garde-fou local — remplace la protection de branche GitHub, indisponible sur
+# un dépôt privé en formule gratuite (problème ouvert P1 du Mode Opératoire).
+#
+# Activation : git config core.hooksPath .githooks
+#
+# 1. Toujours : le fichier de verrouillage doit satisfaire `npm ci` sous Linux,
+#    sinon l'intégration continue échoue avant le premier test.
+# 2. Vers `main` : la vérification complète (types, style, tests) doit passer.
+#
+set -euo pipefail
+
+echec() {
+  echo ""
+  echo "  ✖ Poussée refusée — $1"
+  echo ""
+  exit 1
+}
+
+echo "→ Vérification du fichier de verrouillage (cible Linux)…"
+if ! npm ci --dry-run --os=linux --cpu=x64 --libc=glibc >/dev/null 2>&1; then
+  echec "package-lock.json ne satisfait pas \`npm ci\` sous Linux.
+    Lancer : npm run lock:ci   puis committer package-lock.json"
+fi
+
+vers_main=non
+while read -r _locale _sha_local distante _sha_distant; do
+  case "$distante" in
+    refs/heads/main) vers_main=oui ;;
+  esac
+done
+
+if [ "$vers_main" = oui ]; then
+  echo "→ Poussée vers main : vérification complète…"
+  if ! npm run verify; then
+    echec "la vérification complète est au rouge. Corriger avant de pousser sur main."
+  fi
+fi
+
+echo "✓ Garde-fou franchi."

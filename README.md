@@ -33,6 +33,15 @@ message nomme la variable.
 | `npm run db:deploy` | applique les migrations existantes |
 | `npm run db:seed` | (re)crée le jeu de démonstration |
 | `npm run db:reset` | remet la base à zéro puis la repeuple |
+| `npm run lock:ci` | régénère `package-lock.json` — **à lancer après toute installation de paquet** |
+
+### Le fichier de verrouillage se régénère pour Linux
+
+`npm install` lancé depuis macOS produit un `package-lock.json` amputé des
+variantes binaires Linux : l'intégration continue échoue alors dès `npm ci`,
+avant le premier test. Après tout ajout ou mise à jour de dépendance, lancer
+`npm run lock:ci` et versionner le fichier obtenu. Le verrou ainsi produit
+satisfait `npm ci` sur les deux plateformes ; le crochet `pre-push` le vérifie.
 
 Les tests d'intégration travaillent sur `TEST_DATABASE_URL` et **jamais** sur la
 base de développement.
