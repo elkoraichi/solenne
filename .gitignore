@@ -29,3 +29,6 @@ tsconfig.tsbuildinfo
 
 # Client Prisma : régénéré à l'installation (`postinstall`)
 src/generated/
+
+# Réglages locaux de l'agent
+.claude/settings.local.json
