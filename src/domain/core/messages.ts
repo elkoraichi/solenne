@@ -86,7 +86,32 @@ export const CATALOGUE_MESSAGES: Readonly<Record<CodeErreur, string>> = {
     'Un séjour confirmé occupe ces dates : {qui}, {periode}. Annulez-le avant de bloquer la période.',
 }
 
+/**
+ * Les mêmes refus, **chiffrés, pour l'écran de Solenne seule**.
+ *
+ * PRIV-005 a retiré les nombres du message destiné à un ami : ils lui
+ * apprendraient combien de personnes occupent la maison, y compris celles d'un
+ * séjour qu'il n'a pas le droit de voir. Solenne, elle, a besoin du chiffre
+ * pour trancher. Les deux versions vivent ici côte à côte plutôt que dispersées
+ * dans les modules (CORE-012) ; c'est l'appelant qui choisit son public, et
+ * jamais l'écran qui masque après coup (règle non négociable n°4).
+ *
+ * Un code absent de cette table n'a rien de plus à dire à Solenne qu'à un ami.
+ */
+export const CATALOGUE_DETAILS: Readonly<Partial<Record<CodeErreur, string>>> = {
+  CAPACITY_EXCEEDED: 'La maison serait à {n} personnes pour {max} places.',
+}
+
 export type ParametresMessage = Readonly<Record<string, string | number>>
+
+function substituer(gabarit: string, parametres?: ParametresMessage): string {
+  if (!parametres) return gabarit
+
+  return gabarit.replace(/\{(\w+)\}/g, (correspondance, cle: string) => {
+    const valeur = parametres[cle]
+    return valeur === undefined ? correspondance : String(valeur)
+  })
+}
 
 /**
  * Rend le message d'un code, paramètres substitués.
@@ -97,13 +122,15 @@ export function messagePour(
   code: CodeErreur,
   parametres?: ParametresMessage,
 ): string {
-  const gabarit = CATALOGUE_MESSAGES[code]
-  if (!parametres) return gabarit
+  return substituer(CATALOGUE_MESSAGES[code], parametres)
+}
 
-  return gabarit.replace(/\{(\w+)\}/g, (correspondance, cle: string) => {
-    const valeur = parametres[cle]
-    return valeur === undefined ? correspondance : String(valeur)
-  })
+/** La version chiffrée quand elle existe, le message ordinaire sinon. */
+export function messageDetaille(
+  code: CodeErreur,
+  parametres?: ParametresMessage,
+): string {
+  return substituer(CATALOGUE_DETAILS[code] ?? CATALOGUE_MESSAGES[code], parametres)
 }
 
 /** Vrai si chaque code possède une entrée non vide (CORE-012). */

@@ -6,37 +6,48 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `OCCUP-B` — module `OCCUP` terminé (34/34 cas), rapport de fin de module |
+| **Dernier commit** | `AVAIL-A` — garde-fou G1, R1, R2/R3, R4 · 15 cas verts |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | `OCCUP` ✅ terminé — Mode Opératoire §2 et §14 (v1.12) mis à jour |
-| **Arrêt en cours** | rien — `OCCUP-A` et `OCCUP-B` clos |
-| **Prochain arrêt** | **S3 · `AVAIL-A`** — **Opus requis** : garde-fou G1, R1 blocages, R2/R3 exclusivité, R4 capacité |
-| **Prochaine action** | Lire `Mode Operatoire - Detail/Lot3-Sejours.md`, section `AVAIL` (§118 et suivants), avant tout code |
-| **Suite de tests** | verte — 647 Vitest (45 s) + 448 Playwright, 6 ignorés (1 min 20) |
+| **Module en cours** | `AVAIL` — 15 cas sur 35 ; `OCCUP` ✅ terminé |
+| **Arrêt en cours** | rien — `AVAIL-A` clos |
+| **Prochain arrêt** | **S4 · `AVAIL-B`** — Sonnet : R5 cohabitation, R6 événements *(dormant)*, R7 séjour pendant événement, R8 délégation à `POLICY` |
+| **Prochaine action** | Lire `Mode Operatoire - Detail/Lot3-Sejours.md` lignes 160→199 (cas de test `AVAIL`), puis `src/domain/availability/disponibilite.ts` avant tout code |
+| **Suite de tests** | verte — 671 Vitest (45 s) + 448 Playwright, 6 ignorés (1 min 12) |
 | **En attente de Yassine** | rien |
 
-## Ce qui a été arrêté à `OCCUP-B`
+## Ce qui a été figé à `AVAIL-A`
 
-- Les 11 cas restants (`OCCUP-015`, `018→026`) sont écrits et verts.
-- **`OCCUP-018` rejoué avec deux séjours confirmés**, pas avec un dormeur
-  d'événement : `DORMEUR_ÉVÉNEMENT` étant encore dormant, une présence sous ce
-  contributeur serait filtrée avant la déduplication — le test aurait été vrai
-  pour une mauvaise raison. Le mécanisme éprouvé (`dejaComptees`, partagé par
-  toutes les présences retenues d'un jour) est le même que celui que `SLEEP`
-  activera au lot 4 ; **à rejouer tel quel** avec un vrai dormeur à ce moment-là.
-- **Grille S1→S12 sans objet, vérifié et non supposé** : `src/server/occupation.ts`
-  ne porte aucune Server Action, n'est appelé par aucun client.
-- **Aucun outil de couverture dans le dépôt** : le critère « couverture 100 % »
-  a été vérifié à la main, fonction par fonction, plutôt que d'ajouter une
-  dépendance pour produire un chiffre.
-- Rapport de module écrit : `Rapports/Lot3-Sejours.md`. Journal `Mode
-  Operatoire.md` §14.3 → entrée **1.12**. Tableau de bord §2 → lot 3 à
-  34/133, `OCCUP` marqué livré.
+- **Le contrat** vit dans `src/domain/availability/` : `conflits.ts` (forme d'un
+  refus, ordre de gravité) et `disponibilite.ts` (`verifierDisponibilite`).
+  `AVAIL-B` et `AVAIL-C` **ajoutent des règles dans ce cadre**, ils ne le
+  réécrivent pas.
+- **Garde-fou G1 prouvé deux fois**, parce qu'aucune preuve ne suffisait seule :
+  par le comportement (une présence sous contributeur dormant ne remplit pas la
+  maison — un `AVAIL` qui compterait la verrait) et par analyse statique (toute
+  lecture de `presences` hors de l'appel à `occupationSur` fait rougir le test).
+  Troisième verrou, dans les types : **`SejourExistant` ne porte pas d'effectif**
+  — `AVAIL` n'a physiquement rien à additionner.
+- **Ordre de gravité arrêté** (`ORDRE_GRAVITE`) : `PRE, R1, R2, R3, R6, R4, R8`.
+  Critère : d'abord ce qu'aucune modification de la demande ne réparerait, en
+  dernier ce qui se corrige en changeant un nombre. `AVAIL-C` l'éprouvera sur
+  les combinaisons ; il n'a pas à le redéfinir.
+- **Tension `AVAIL-009` / PRIV-005 résolue sans arbitrage de Yassine.** La fiche
+  attend « 12 personnes pour 10 places » ; PRIV-005 avait retiré les chiffres du
+  message destiné à un ami. Les deux versions coexistent désormais dans
+  `messages.ts` : `CATALOGUE_MESSAGES` (l'ami, aucun chiffre) et
+  `CATALOGUE_DETAILS` (Solenne, chiffré). `pourAmi()` **retire** le détail au
+  lieu de compter sur l'écran pour le masquer — règle non négociable n°4.
+- **`AVAIL-026` avancé depuis S4** : sans son contrôle préalable, `occupationSur`
+  lèverait `INVALID_DATES` au lieu de rendre un conflit. Le cas est écrit et
+  vert ; il ne reste que 12 cas à S4, pas 13.
+- **Grille S1→S12 sans objet, vérifié et non supposé** : `grep -rn availability
+  src` ne rend que le module lui-même — aucune Server Action, aucune surface.
+  Grille C1→C6 sans objet : fonction pure, aucune écriture.
 
 ## Deux points d'outillage
 
 - **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier` :
   il réécrit tout en double quotes et points-virgules, contre le style du code.
   Le style se vérifie avec `npx eslint .`.
-- Session ouverte sur Sonnet pour `OCCUP-B`, conformément au plan — le prochain
-  arrêt (`AVAIL-A`) exige de repasser sur **Opus** avant tout code.
+- `AVAIL-B` se fait sur **Sonnet** : il applique un motif déjà posé, règle après
+  règle. `AVAIL-C` exigera de revenir sur **Opus**.
