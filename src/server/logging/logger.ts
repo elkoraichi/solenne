@@ -28,7 +28,32 @@ export interface ContexteJournal {
 
 export type SortieJournal = (entree: EntreeJournal) => void
 
+const RANG: Readonly<Record<NiveauJournal, number>> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+}
+
+/**
+ * Seuil d'écriture sur la console — `JOURNAL_NIVEAU_MIN`, ou `silence`.
+ *
+ * En production et en développement, tout s'écrit : c'est le journal.
+ * Pendant les tests, non. Les grilles S1→S12 provoquent des centaines de refus
+ * **attendus**, chacun avec son détail technique et sa pile : ils noyaient la
+ * sortie, où seuls les échecs doivent se lire. Le journal n'est pas désactivé
+ * pour autant — les tests qui l'éprouvent (CORE-004) installent leur propre
+ * destination par `configurerSortieJournal` et ne perdent rien.
+ */
+const SEUIL: number = (() => {
+  const demande = process.env.JOURNAL_NIVEAU_MIN
+  if (demande === 'silence') return Number.POSITIVE_INFINITY
+  if (demande && demande in RANG) return RANG[demande as NiveauJournal]
+  return process.env.VITEST ? Number.POSITIVE_INFINITY : 0
+})()
+
 const sortieConsole: SortieJournal = (entree) => {
+  if (RANG[entree.niveau] < SEUIL) return
   const ligne = JSON.stringify(entree)
   if (entree.niveau === 'error') console.error(ligne)
   else if (entree.niveau === 'warn') console.warn(ligne)

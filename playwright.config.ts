@@ -33,7 +33,11 @@ export default defineConfig({
   // cinq navigateurs la demandent en même temps. Les assertions, elles, gardent
   // leurs propres délais — rien n'est masqué.
   timeout: 60_000,
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  // Hors intégration continue : `dot`. La campagne nomme 454 tests, ce qui fait
+  // 80 Ko de sortie dont seuls les échecs comptent — et cette sortie est lue par
+  // un agent qui la paie au caractère (§2.2, mesure M4). Un échec reste détaillé
+  // en entier ; c'est la litanie des succès qui disparaît.
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'dot',
 
   use: {
     baseURL: ADRESSE,
@@ -92,6 +96,11 @@ export default defineConfig({
       // d'environnement exige un émetteur d'emails (SETUP-004). La campagne
       // n'envoie aucun courrier : elle fournit donc une valeur de façade,
       // plutôt que d'affaiblir un garde-fou qui protège la mise en ligne.
+      // Les parcours de sécurité provoquent des refus **attendus**, que le
+      // serveur journalise consciencieusement. Repris par `stderr: 'pipe'`,
+      // ils recouvraient la liste des tests. Seules les erreurs remontent
+      // désormais — le journal reste entier en production.
+      JOURNAL_NIVEAU_MIN: process.env.JOURNAL_NIVEAU_MIN || 'error',
       RESEND_API_KEY: process.env.RESEND_API_KEY || 'cle-de-facade-parcours',
       EMAIL_FROM:
         process.env.EMAIL_FROM || 'La Maison de Solenne <parcours@exemple.test>',
