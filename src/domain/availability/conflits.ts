@@ -1,4 +1,4 @@
-import type { CodeMetier } from '@/domain/core/error-codes'
+import type { CodeErreur, CodeMetier } from '@/domain/core/error-codes'
 import {
   messageDetaille,
   messagePour,
@@ -71,7 +71,13 @@ export interface DetailsConflit {
 
 export interface Conflit {
   readonly regle: Regle
-  readonly code: CodeMetier
+  /**
+   * `CodeMetier` pour `PRE`→`R7`, propres à `AVAIL` ; `R8` porte le code de
+   * `POLICY` (`CodePolicy`) ou d'un module appelant (`STAYREQ`…) — d'où le
+   * type large. `conflit()`, plus bas, reste borné à `CodeMetier` : c'est la
+   * seule façon de fabriquer un conflit des huit règles propres d'`AVAIL`.
+   */
+  readonly code: CodeErreur
   /** Français, destiné à un ami. Aucun chiffre privé. */
   readonly message: string
   readonly details?: DetailsConflit

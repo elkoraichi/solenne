@@ -1,4 +1,38 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "model": "sonnet"
+  "model": "sonnet",
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm run:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git restore:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(sed:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(psql:*)",
+      "Read(//Users/koraichi/Documents/Solenne/**)",
+      "Edit(//Users/koraichi/Documents/Solenne/**)",
+      "Write(//Users/koraichi/Documents/Solenne/**)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(rm -rf:*)",
+      "Read(//Users/koraichi/Documents/Solenne/src/generated/**)",
+      "Read(//Users/koraichi/Documents/Solenne/node_modules/**)"
+    ]
+  }
 }

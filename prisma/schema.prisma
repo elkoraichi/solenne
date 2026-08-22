@@ -338,13 +338,16 @@ model HouseRuleVersion {
   @@map("house_rule_versions")
 }
 
+// `maxGuests`, `maxStayNights`, `minLeadTimeHours`, `maxAdvanceDays` sont
+// `null` quand Solenne désactive la règle (POL-R2, `POLICY-008`/`010`) —
+// pas de booléen `actif` séparé, la valeur porte elle-même son état.
 model BookingSettings {
   id                  String      @id @default(cuid())
   houseId             String      @unique @map("house_id")
-  maxGuests           Int         @default(10) @map("max_guests")
-  maxStayNights       Int         @default(14) @map("max_stay_nights")
-  minLeadTimeHours    Int         @default(48) @map("min_lead_time_hours")
-  maxAdvanceDays      Int         @default(365) @map("max_advance_days")
+  maxGuests           Int?        @map("max_guests")
+  maxStayNights       Int?        @map("max_stay_nights")
+  minLeadTimeHours    Int?        @map("min_lead_time_hours")
+  maxAdvanceDays      Int?        @map("max_advance_days")
   blockedWeekdays     Int[]       @default([]) @map("blocked_weekdays")
   defaultStayPrivacy  StayPrivacy @default(BUSY_ONLY) @map("default_stay_privacy")
   allowCoOccupancy    Boolean     @default(true) @map("allow_co_occupancy")
@@ -481,6 +484,10 @@ model EventItemClaim {
 // 4.3 — Séjours et occupation
 // ---------------------------------------------------------------------------
 
+// STAYREQ-C06 — un index unique partiel (migration
+// `lot3_stayreq_demande_unique_en_attente`) empêche deux demandes `PENDING`
+// du même demandeur pour les mêmes dates. Pas exprimable ici : l'index est
+// filtré par `status`, hors du langage déclaratif de Prisma.
 model StayRequest {
   id              String            @id @default(cuid())
   requesterId     String            @map("requester_id")

@@ -114,6 +114,8 @@ export interface OptionsDemande {
   readonly adultes?: number
   readonly enfants?: number
   readonly statut?: StayRequestStatus
+  /** Demande de privatisation (D2) — `STAYDEC-014`. */
+  readonly exclusif?: boolean
   readonly motif?: string
   readonly commentaire?: string
   readonly besoins?: string
@@ -132,9 +134,38 @@ export async function creerDemande(
       adults: options.adultes ?? 2,
       children: options.enfants ?? 0,
       status: options.statut ?? 'PENDING',
+      exclusive: options.exclusif ?? false,
       purpose: options.motif ?? null,
       comment: options.commentaire ?? null,
       specialNeeds: options.besoins ?? null,
+    },
+  })
+}
+
+export interface OptionsRegle {
+  readonly titre?: string
+  readonly texte?: string
+  readonly obligatoire?: boolean
+  readonly active?: boolean
+}
+
+export async function creerRegle(
+  client: PrismaClient,
+  maisonId: string,
+  options: OptionsRegle = {},
+) {
+  const contenu = {
+    title: options.titre ?? 'Pas de fête après minuit',
+    body: options.texte ?? 'Le voisinage dort.',
+    requiresAcceptance: options.obligatoire ?? true,
+  }
+  return client.houseRule.create({
+    data: {
+      houseId: maisonId,
+      ...contenu,
+      active: options.active ?? true,
+      version: 1,
+      versions: { create: { version: 1, ...contenu } },
     },
   })
 }

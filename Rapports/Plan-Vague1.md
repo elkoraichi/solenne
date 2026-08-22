@@ -62,13 +62,13 @@
 | Contenu | Server Actions : créer, consulter, modifier, annuler · privatisation D2 · acceptation des règles · concurrence `C06` · sécurité `S04` | Assistant en 3 étapes · disponibilité en direct · récapitulatif « soumis à l'accord de Solenne » · E2E · 320 px · rapport |
 | Cas | `001→009`, `011`, `012`, `014→017`, `C06`, `S04` (17) | `010`, `013`, `018` (3) |
 
-### `STAYDEC` — Décision ⚠️ · 18 cas
+### `STAYDEC` — Décision ⚠️ · 19 cas
 
 | | S10 · **STAYDEC-A** | S11 · **STAYDEC-B** |
 |---|---|---|
 | **Modèle** | **Opus** | Sonnet |
 | Contenu | **Revalidation dans la transaction sérialisable** · contrainte d'exclusion en base · grille de concurrence `C01` et `C05` | File d'attente · écran de décision · acceptation, refus, contre-proposition · sécurité `S02`/`S06` · 320 px · rapport |
-| Cas | `001`, `005`, `006`, `011`, `014`, `C01`, `C05` (7) | `002→004`, `007→010`, `012`, `013`, `S02`, `S06` (11) |
+| Cas | `001`, `005`, `006`, `011`, `014`, `C01`, `C05`, `C06` (8) | `002→004`, `007→010`, `012`, `013`, `S02`, `S06` (11) |
 
 **Pourquoi Opus sur S10** : c'est le module ⚠️ du projet. Deux acceptations à la même seconde sur la dernière place doivent produire exactement un séjour, et le refus de l'autre doit être un refus **métier**, pas une trace de base de données. C'est le seul endroit de la vague 1 où le code juste et le code presque juste sont indiscernables à la lecture.
 

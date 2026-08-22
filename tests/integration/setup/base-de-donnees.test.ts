@@ -149,6 +149,9 @@ describe('SETUP-006 / 007 / 008 — migrations', () => {
     `
     expect(contraintes.map((c) => c.conname)).toEqual([
       'events_sans_chevauchement',
+      // Le volet mixte de D2, posé par `STAYDEC-A` : un séjour exclusif exclut
+      // aussi les séjours ordinaires qui le chevauchent.
+      'stays_exclusif_sans_cohabitation',
       'stays_sans_chevauchement_exclusif',
     ])
 
@@ -190,6 +193,9 @@ describe('SETUP-006 / 007 / 008 — migrations', () => {
     const avant = await empreinteDuSchema(client)
 
     const migrations = [
+      '20260822120000_lot3_staydec_exclusivite_stricte',
+      '20260822090000_lot3_stayreq_demande_unique_en_attente',
+      '20260822081034_lot3_policy_reglages_optionnels',
       '20260821200000_lot2_versions_regles',
       '20260821170000_audit_anonymisation',
       '20260821164314_lot1_identite',

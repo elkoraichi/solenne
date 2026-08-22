@@ -87,6 +87,32 @@ export const CATALOGUE_MESSAGES: Readonly<Record<CodeErreur, string>> = {
     'La maison accueille déjà {n} personnes le {jour}. Annulez ou réduisez ces séjours avant de descendre à {max} places.',
   BLOCKED_OVER_STAY:
     'Un séjour confirmé occupe ces dates : {qui}, {periode}. Annulez-le avant de bloquer la période.',
+
+  // --- Réglages de réservation (lot 3, `POLICY`) ---
+  MAX_PARTY_SIZE: 'Une demande ne peut pas dépasser {max} personnes.',
+  POLICY_UNREACHABLE:
+    'Aucune demande ne serait possible avec ces réglages : le délai minimum dépasse l’horizon maximum. Réduisez l’un des deux.',
+  MAX_PARTY_ABOVE_CAPACITY:
+    'Le nombre maximum de personnes par demande ne peut pas dépasser la capacité de la maison ({max}).',
+
+  // --- Demande de séjour (lot 3, `STAYREQ`) ---
+  AT_LEAST_ONE_GUEST: 'Au moins une personne doit être déclarée.',
+  GUEST_COUNT_MISMATCH:
+    'Le nombre d’invités nommés ne correspond pas au nombre de personnes déclaré.',
+  RULES_NOT_ACCEPTED:
+    'Vous devez accepter les règles de la maison avant d’envoyer votre demande.',
+  REQUEST_ALREADY_DECIDED:
+    'Cette demande a déjà été traitée. Elle n’est plus modifiable.',
+
+  // --- Décision de Solenne (lot 3, `STAYDEC`) ---
+  REQUEST_CANCELLED:
+    'Cette demande a été annulée par la personne qui l’avait faite. Il n’y a plus rien à décider.',
+  // Seul message du catalogue qui ne se suffit pas à lui-même : il se lit
+  // **à la suite** de la raison du conflit, que `evaluerAcceptation` place
+  // devant (« La maison serait à 12 personnes pour 10 places. Confirmez… »).
+  // Le code du refus reste celui du conflit — Solenne a besoin de savoir
+  // pourquoi, pas seulement qu'il faut confirmer.
+  DECISION_CONFLICT_UNCONFIRMED: 'Confirmez explicitement pour accepter quand même.',
 }
 
 /**

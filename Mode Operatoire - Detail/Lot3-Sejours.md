@@ -1,6 +1,6 @@
 # Lot 3 — Séjours ★ · Fiches détaillées
 
-`OCCUP` · `AVAIL` · `POLICY` · `STAYREQ` · `STAYDEC` · `STAY` — 6 modules, 124 cas de test.
+`OCCUP` · `AVAIL` · `POLICY` · `STAYREQ` · `STAYDEC` · `STAY` — 6 modules, 125 cas de test.
 Rattaché à `Mode Operatoire.md` v1.0. **Lot le plus critique du projet.**
 
 ---
@@ -396,7 +396,7 @@ Demande devenue incompatible depuis sa création · deux acceptations simultané
 | Un ami acceptant une demande | CRITICAL | `STAYDEC-S02`, `STAYDEC-S06` |
 
 ## 10. Critères d'acceptation
-Les 18 tests passent · **grille C1→C6 au vert** · aucune surcapacité possible, y compris sous accès concurrent · chaque décision produit une notification et une entrée d'audit.
+Les 19 tests passent · **grille C1→C6 au vert** · aucune surcapacité possible, y compris sous accès concurrent · chaque décision produit une notification et une entrée d'audit.
 
 ## 11. Cas de test
 
@@ -418,6 +418,7 @@ Les 18 tests passent · **grille C1→C6 au vert** · aucune surcapacité possib
 | STAYDEC-014 | Séjour exclusif accepté | Demande exclusive compatible | Acceptation | `stay` exclusif créé ; toute demande ultérieure sur ces dates est refusée | CRITICAL | Integration |
 | STAYDEC-C01 | **Deux acceptations simultanées** | Deux demandes de 6 pers., capacité 10, mêmes dates | Acceptation en parallèle | **Une seule réussit** ; l'autre reçoit `CAPACITY_EXCEEDED`. Occupation finale ≤ 10 | CRITICAL | Concurrency |
 | STAYDEC-C05 | Blocage concurrent | Acceptation en cours, blocage posé simultanément | Exécution parallèle | Ordre déterministe, aucun état incohérent | HIGH | Concurrency |
+| STAYDEC-C06 | **Double clic sur « Accepter »** *(ajouté le 22/08/2026 par la grille §8)* | Une demande `PENDING`, deux acceptations identiques lancées ensemble | Exécution parallèle | Un seul séjour, une seule notification, une seule trace ; le second clic reçoit `REQUEST_ALREADY_DECIDED`, jamais une violation d'index | HIGH | Concurrency |
 | STAYDEC-S02 | Ami acceptant une demande | Session ami | Appel | Refus + audit | CRITICAL | Security |
 | STAYDEC-S06 | Appel direct de l'acceptation | Requête forgée par un ami | Appel | Garde déclenchée, aucun séjour créé | CRITICAL | Security |
 

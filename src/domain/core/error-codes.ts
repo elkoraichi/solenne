@@ -62,17 +62,44 @@ export const CODES_MAISON = [
   'BLOCKED_OVER_STAY',
 ] as const
 
+/** Refus propres aux réglages de réservation — lot 3 (`POLICY`). */
+export const CODES_POLICY = [
+  'MAX_PARTY_SIZE',
+  'POLICY_UNREACHABLE',
+  'MAX_PARTY_ABOVE_CAPACITY',
+] as const
+
+/** Refus propres à la demande de séjour — lot 3 (`STAYREQ`). */
+export const CODES_STAYREQ = [
+  'AT_LEAST_ONE_GUEST',
+  'GUEST_COUNT_MISMATCH',
+  'RULES_NOT_ACCEPTED',
+  'REQUEST_ALREADY_DECIDED',
+] as const
+
+/** Refus propres à la décision de Solenne — lot 3 (`STAYDEC`). */
+export const CODES_STAYDEC = [
+  'REQUEST_CANCELLED',
+  'DECISION_CONFLICT_UNCONFIRMED',
+] as const
+
 export const CODES = [
   ...CODES_METIER,
   ...CODES_TRANSVERSES,
   ...CODES_IDENTITE,
   ...CODES_MAISON,
+  ...CODES_POLICY,
+  ...CODES_STAYREQ,
+  ...CODES_STAYDEC,
 ] as const
 
 export type CodeMetier = (typeof CODES_METIER)[number]
 export type CodeTransverse = (typeof CODES_TRANSVERSES)[number]
 export type CodeIdentite = (typeof CODES_IDENTITE)[number]
 export type CodeMaison = (typeof CODES_MAISON)[number]
+export type CodePolicy = (typeof CODES_POLICY)[number]
+export type CodeStayReq = (typeof CODES_STAYREQ)[number]
+export type CodeStayDec = (typeof CODES_STAYDEC)[number]
 export type CodeErreur = (typeof CODES)[number]
 
 const TOUS = new Set<string>(CODES)

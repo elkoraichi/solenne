@@ -5,6 +5,7 @@ import { BlocagesMaison } from '@/components/formulaires/blocages-maison'
 import { ConfidentialiteMaison } from '@/components/formulaires/confidentialite-maison'
 import { EspacesMaison } from '@/components/formulaires/espaces-maison'
 import { FormulaireMaison } from '@/components/formulaires/formulaire-maison'
+import { ReglagesReservationMaison } from '@/components/formulaires/reglages-reservation-maison'
 import { ReglesMaison } from '@/components/formulaires/regles-maison'
 import { versTexteJour } from '@/domain/core/dates'
 import { blocages } from '@/server/actions/blocages'
@@ -14,6 +15,7 @@ import {
 } from '@/server/actions/confidentialite'
 import { espacesDeLaMaison } from '@/server/actions/espaces'
 import { maison } from '@/server/actions/maison'
+import { reglagesReservation } from '@/server/actions/reglages-reservation'
 import { reglesDeLaMaison } from '@/server/actions/regles'
 import { requireAdminPage } from '@/server/auth/garde'
 
@@ -24,7 +26,7 @@ export default async function PageGererMaison() {
 
   const aujourdhui = versTexteJour(new Date())
 
-  const [informations, espaces, regles, periodes, reglages, sejours] =
+  const [informations, espaces, regles, periodes, reglages, sejours, reglagesReservationEtat] =
     await Promise.all([
       maison(),
       espacesDeLaMaison(),
@@ -32,6 +34,7 @@ export default async function PageGererMaison() {
       blocages(),
       reglagesConfidentialite(),
       sejoursDetailles({ du: aujourdhui }),
+      reglagesReservation(),
     ])
   if (
     !informations.ok ||
@@ -39,7 +42,8 @@ export default async function PageGererMaison() {
     !regles.ok ||
     !periodes.ok ||
     !reglages.ok ||
-    !sejours.ok
+    !sejours.ok ||
+    !reglagesReservationEtat.ok
   ) {
     notFound()
   }
@@ -53,6 +57,7 @@ export default async function PageGererMaison() {
       />
       <ReglesMaison regles={regles.data} />
       <BlocagesMaison blocages={periodes.data} />
+      <ReglagesReservationMaison reglages={reglagesReservationEtat.data} />
       <ConfidentialiteMaison
         defaut={reglages.data.defaut}
         defautSolenne={reglages.data.defautSolenne}
