@@ -121,7 +121,7 @@ Décision de **budget**, pas de produit : environ 100 € d'appels API ont été
 
 ### 2.2 Méthode économique — **appliquée à partir du 22/08/2026**
 
-Le coût par module passe d'environ 8 € à environ 3 € sans rien céder sur les 10 critères du §11.1. Cinq mesures :
+Le coût par module passe d'environ 8 € à environ 3 € sans rien céder sur les 10 critères du §11.1. Sept mesures — les cinq premières arrêtées le 22/08/2026, **M6 et M7 ajoutées le même jour après mesure au contact du code** :
 
 | # | Mesure | Portée |
 |---|---|---|
@@ -130,6 +130,8 @@ Le coût par module passe d'environ 8 € à environ 3 € sans rien céder sur 
 | M3 | **Les captures ne sont plus chargées en contexte** | Juger le rendu est la limite **L2** de Yassine. Je produis les fichiers dans `Rapports/`, il les ouvre |
 | M4 | **Rapports et entrées de journal courts** | Le fond est conservé, la prose est coupée |
 | M5 | **Session neuve à chaque module** | Une conversation longue renvoie tout son historique à chaque échange — c'est le premier poste de dépense, et le plus invisible |
+| M6 | **Sorties d'outils filtrées** — journal muet sous test, rapporteur `dot`, jamais de recherche dans `src/generated/` | Ajoutée le 22/08/2026, après mesure : une passe Vitest écrivait **467 974** caractères, dont la quasi-totalité était le détail technique de refus **attendus** par les grilles S1→S12. Ramenée à **2 318**. Une campagne Playwright passe de 80 177 à 5 121. Ce qui entre dans la conversation s'y repaie à chaque tour |
+| M7 | **Plafond de 40 000 jetons par session** — une session couvre **un arrêt**, pas un module ; fiche de reprise `Rapports/etat.md` à chaque fin d'arrêt | Ajoutée le 22/08/2026, à la demande de Yassine. Le plancher d'une session neuve est d'environ 15 000 jetons (harnais, outils, `CLAUDE.md`) : restent ~25 000 de marge utile, soit exactement un arrêt. **M7 rend M5 plus strict et le remplace** : session neuve par arrêt, non plus par module. Sans la fiche de reprise, on paie en redécouverte ce qu'on gagne en brièveté — mesuré le 22/08 : vingt appels d'outils pour retrouver qu'un module était écrit mais non clos |
 
 Les 214 cas des lots 0, 1 et 2 sont couverts par **1 053 vérifications automatisées** — 599 avec Vitest (44 s), 454 avec Playwright sur les trois tailles d'écran (1 min 15 s, compilation de production comprise). La régression complète tient en **1 min 59 s**, sous les 5 minutes exigées au §9.
 

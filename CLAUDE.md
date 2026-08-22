@@ -99,3 +99,18 @@ Carnet numérique d'une maison de campagne, pas un logiciel de gestion. Lin, oli
 - Sortie de tests : ne remonter que les échecs.
 - Rapports de fin de module : courts, format imposé.
 - Repartir d'une session neuve entre deux lots.
+
+## Plafond de session — 40 000 jetons
+
+**Une session couvre un arrêt, pas un module.** Approchant du plafond, je m'arrête où j'en suis, je mets `Rapports/etat.md` à jour et je demande une session neuve. Un arrêt inachevé repris proprement coûte moins qu'une session qui déborde.
+
+| Règle | Pourquoi |
+|---|---|
+| Lire une fiche **par plage de lignes** (`sed -n '297,362p'`) | Le fichier d'un lot pèse ~10 000 jetons ; la section d'un module en pèse 2 000 |
+| Ne jamais chercher dans `src/generated/` ni `node_modules/` | Une seule ligne du client Prisma généré fait 24 209 caractères |
+| Ne pas relire un fichier que je viens d'écrire | `Edit` échoue si l'écriture n'a pas eu lieu — la relire ne prouve rien |
+| Sortie de tests : rapporteur `dot`, et ne commenter que les échecs | Le journal est déjà filtré (`JOURNAL_NIVEAU_MIN`) : une passe verte tient en 2 300 caractères |
+| Grouper les commandes indépendantes en un seul appel | Chaque aller-retour d'outil se repaie à tous les tours suivants |
+| Fin d'arrêt : `Rapports/etat.md` en dix lignes, puis stop | Sans elle, la session suivante dépense vingt appels d'outils à retrouver où nous en sommes |
+
+Le modèle se choisit par session (`/model`) : **Sonnet par défaut**, Opus réservé à `OCCUP` et `AVAIL` (§2.2, mesure M1).
