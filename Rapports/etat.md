@@ -6,12 +6,12 @@
 
 | | |
 |---|---|
-| **Dernier commit** | *(à créer)* `STAYREQ` clos (20/20) + `POLICY-012` (16/16) **et** le code de `STAYDEC-A` ci-dessous — un seul commit reste à faire pour les deux |
+| **Dernier commit** | `ab27862` — `STAYREQ` clos (20/20), `POLICY` 16/16, `STAYDEC-A` (8 cas sur 19). Journal §14 entrée 1.16 et tableau de bord §2 à jour |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
 | **Module en cours** | `STAYDEC` ★ — arrêt A : **7 cas + grille C1→C6 verts** |
-| **Arrêt en cours** | `STAYDEC-A` — ⚠️ **OPUS REQUIS jusqu'à sa clôture**. Reste : journal `Mode Operatoire.md` §14, tableau de bord §2, et le commit (il en couvre trois : `STAYREQ`, `POLICY-012`, `STAYDEC-A`) |
-| **Prochain arrêt** | clore `STAYDEC-A`, puis `STAYDEC-B` (Sonnet) |
-| **Prochaine action** | Écrire l'entrée de journal §14 pour `STAYDEC-A`, mettre le §2 à jour, committer. Le rapport de module attend l'arrêt B ; sa grille de concurrence est **déjà écrite** dans `Rapports/Lot3-Sejours.md` |
+| **Arrêt en cours** | aucun — `STAYDEC-A` est **clos** (7 cas de la fiche + `C06`, grille C1→C6, régression, journal, tableau de bord, commit) |
+| **Prochain arrêt** | `STAYDEC-B` — **Sonnet**, session neuve. Cas `002→004`, `007→010`, `012`, `013`, `S02`, `S06` (11) : file d'attente, écran de décision, refus motivé, contre-proposition, 320 px, rapport de module |
+| **Prochaine action** | Lire la section `STAYDEC` de la fiche du lot 3 (`sed -n '350,423p'`), puis écrire les cas de `STAYDEC-B`. **Point d'attention** : l'écran a besoin du verdict complet (`confirmationSuffirait`) que le refus d'écriture ne peut pas porter — prévoir une action de lecture, sur le modèle de `verifierDisponibiliteSejour` |
 | **Suite de tests** | **821 Vitest verts en 48 s**, unité + intégration, régression complète rejouée. `npx tsc --noEmit` et `npx eslint .` muets. Playwright **pas rejoué** |
 | **En attente de Yassine** | rien |
 
