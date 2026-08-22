@@ -32,8 +32,27 @@ import { conflit, trierConflits, type Conflit, type ResultatDisponibilite } from
  * ne reçoit pas, elle ne l'invente pas.
  *
  * Périmètre de l'arrêt S3 : contrôles préalables, R1, R2, R3, R4.
- * R5→R8 arrivent à S4, leurs combinaisons à S5 — dans ce fichier, sans en
- * réécrire la structure.
+ * S4 ajoute R5 (aucun code : la cohabitation est déjà ce qui se passe quand ni
+ * R2 ni R4 ne s'y opposent), R7 (même chose : aucun code n'existe pour « un
+ * événement a lieu », donc rien ne bloque une demande de ce seul fait — R4
+ * reste seul juge de la capacité, dormeurs d'événement compris dès que
+ * `SLEEP` les activera dans `OCCUP`), R8 (délégation, ci-dessous) et R6
+ * (dormant, ci-dessous). Leurs combinaisons arrivent à S5.
+ *
+ * **R8 — délégation à `POLICY`, pas exécution.** `POLICY` n'existe pas encore
+ * (module suivant) et ses réglages — délai minimum, horizon, durée maximum —
+ * n'ont rien à voir avec la disponibilité. `AVAIL` ne les recalcule donc pas :
+ * l'appelant (la future Server Action `STAYREQ`) interroge `POLICY` d'abord et
+ * transmet ses refus tels quels via `conflitsPolitique`. `AVAIL` se contente de
+ * les fondre dans la liste et de les trier avec les siens — jamais de les
+ * interpréter, jamais de refaire le calcul à sa place.
+ *
+ * **R6 — dormant.** `verifierChevauchementEvenements`, plus bas, applique la
+ * règle (deux événements ne peuvent jamais se chevaucher, D8) mais n'est
+ * appelée par rien ici : `EVENT` n'existe pas avant le lot 4, et c'est lui qui
+ * l'appellera. Même mécanique que les contributeurs dormants d'`OCCUP` —
+ * déclarée et testée avant d'avoir un appelant, jamais réécrite quand il
+ * arrive.
  */
 
 /**
@@ -69,6 +88,11 @@ export interface ContexteDisponibilite {
   readonly presences: readonly Presence[]
   readonly blocages?: readonly PeriodeBlocage[]
   readonly sejours?: readonly SejourExistant[]
+  /**
+   * R8 — les refus déjà rendus par `POLICY` pour cette même demande.
+   * `AVAIL` ne les calcule pas, il les rapporte (voir plus haut).
+   */
+  readonly conflitsPolitique?: readonly Conflit[]
 }
 
 /**
@@ -138,5 +162,40 @@ export function verifierDisponibilite(
     )
   }
 
+  // R8 — délégation pure : ces conflits sont déjà formés, `AVAIL` les reprend
+  // sans y toucher.
+  conflits.push(...(contexte.conflitsPolitique ?? []))
+
   return { compatible: conflits.length === 0, conflits: trierConflits(conflits) }
+}
+
+/**
+ * Un événement déjà à l'agenda — un instant de début, un instant de fin.
+ * Contrairement à un séjour, un événement se mesure à l'heure, pas au jour :
+ * « 14h→22h » n'est pas un jour entier.
+ */
+export interface EvenementExistant {
+  readonly reference: string
+  readonly debut: Date
+  readonly fin: Date
+}
+
+export interface DemandeEvenement {
+  readonly debut: Date
+  readonly fin: Date
+}
+
+/**
+ * R6 — deux événements ne peuvent jamais se chevaucher (D8). **Dormant** :
+ * voir la note en tête de fichier. `EVENT` (lot 4) l'appellera avant de
+ * confirmer un nouvel événement ; personne ne l'appelle encore.
+ */
+export function verifierChevauchementEvenements(
+  demande: DemandeEvenement,
+  evenementsExistants: readonly EvenementExistant[],
+): Conflit | null {
+  const enConflit = evenementsExistants.find((evenement) =>
+    chevauchent(evenement.debut, evenement.fin, demande.debut, demande.fin),
+  )
+  return enConflit ? conflit('R6', 'EVENT_OVERLAP') : null
 }

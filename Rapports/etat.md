@@ -6,48 +6,48 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `AVAIL-A` — garde-fou G1, R1, R2/R3, R4 · 15 cas verts |
+| **Dernier commit** | `AVAIL-B` — R5, R6 (dormant), R7, R8 (délégation) · 27 cas verts |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | `AVAIL` — 15 cas sur 35 ; `OCCUP` ✅ terminé |
-| **Arrêt en cours** | rien — `AVAIL-A` clos |
-| **Prochain arrêt** | **S4 · `AVAIL-B`** — Sonnet : R5 cohabitation, R6 événements *(dormant)*, R7 séjour pendant événement, R8 délégation à `POLICY` |
-| **Prochaine action** | Lire `Mode Operatoire - Detail/Lot3-Sejours.md` lignes 160→199 (cas de test `AVAIL`), puis `src/domain/availability/disponibilite.ts` avant tout code |
-| **Suite de tests** | verte — 671 Vitest (45 s) + 448 Playwright, 6 ignorés (1 min 12) |
+| **Module en cours** | `AVAIL` — 27 cas sur 35 ; `OCCUP` ✅ terminé |
+| **Arrêt en cours** | rien — `AVAIL-B` clos |
+| **Prochain arrêt** | **S5 · `AVAIL-C`** — **Opus requis** : les 8 combinaisons, ordre d'évaluation, aucun conflit masqué, table de décision exhaustive, rapport de fin de module |
+| **Prochaine action** | Lire `Mode Operatoire - Detail/Lot3-Sejours.md` lignes 191→199 (`AVAIL-027→034`), puis `src/domain/availability/disponibilite.ts` et `conflits.ts` avant tout code |
+| **Suite de tests** | verte — 684 Vitest (46 s) + 448 Playwright, 6 ignorés (1 min 12) |
 | **En attente de Yassine** | rien |
 
-## Ce qui a été figé à `AVAIL-A`
+## Ce qui a été figé à `AVAIL-B`
 
-- **Le contrat** vit dans `src/domain/availability/` : `conflits.ts` (forme d'un
-  refus, ordre de gravité) et `disponibilite.ts` (`verifierDisponibilite`).
-  `AVAIL-B` et `AVAIL-C` **ajoutent des règles dans ce cadre**, ils ne le
-  réécrivent pas.
-- **Garde-fou G1 prouvé deux fois**, parce qu'aucune preuve ne suffisait seule :
-  par le comportement (une présence sous contributeur dormant ne remplit pas la
-  maison — un `AVAIL` qui compterait la verrait) et par analyse statique (toute
-  lecture de `presences` hors de l'appel à `occupationSur` fait rougir le test).
-  Troisième verrou, dans les types : **`SejourExistant` ne porte pas d'effectif**
-  — `AVAIL` n'a physiquement rien à additionner.
-- **Ordre de gravité arrêté** (`ORDRE_GRAVITE`) : `PRE, R1, R2, R3, R6, R4, R8`.
-  Critère : d'abord ce qu'aucune modification de la demande ne réparerait, en
-  dernier ce qui se corrige en changeant un nombre. `AVAIL-C` l'éprouvera sur
-  les combinaisons ; il n'a pas à le redéfinir.
-- **Tension `AVAIL-009` / PRIV-005 résolue sans arbitrage de Yassine.** La fiche
-  attend « 12 personnes pour 10 places » ; PRIV-005 avait retiré les chiffres du
-  message destiné à un ami. Les deux versions coexistent désormais dans
-  `messages.ts` : `CATALOGUE_MESSAGES` (l'ami, aucun chiffre) et
-  `CATALOGUE_DETAILS` (Solenne, chiffré). `pourAmi()` **retire** le détail au
-  lieu de compter sur l'écran pour le masquer — règle non négociable n°4.
-- **`AVAIL-026` avancé depuis S4** : sans son contrôle préalable, `occupationSur`
-  lèverait `INVALID_DATES` au lieu de rendre un conflit. Le cas est écrit et
-  vert ; il ne reste que 12 cas à S4, pas 13.
-- **Grille S1→S12 sans objet, vérifié et non supposé** : `grep -rn availability
-  src` ne rend que le module lui-même — aucune Server Action, aucune surface.
-  Grille C1→C6 sans objet : fonction pure, aucune écriture.
+- **R5 et R7 n'ont aucun code** — ni l'un ni l'autre n'a de branche dédiée dans
+  `verifierDisponibilite`. R5 (cohabitation) est ce qui se passe quand ni R2 ni
+  R4 ne s'y opposent ; R7 (séjour pendant un événement) de même, parce
+  qu'aucun code n'existe pour « un événement a lieu ». C'était déjà vrai à la
+  sortie de S3 — S4 n'a fait que l'éprouver par les tests `AVAIL-014→017` et
+  `021→023`.
+- **`AVAIL-022` (dormeurs d'événement) rejoué avec des séjours confirmés**,
+  `DORMEUR_ÉVÉNEMENT` étant encore dormant dans `OCCUP` — même mécanique que
+  `OCCUP-018`, même parade documentée, **à rejouer tel quel** avec de vrais
+  dormeurs quand `SLEEP` (lot 4) activera le contributeur.
+- **R6 écrit et testé, dormant** : `verifierChevauchementEvenements` (dates
+  horaires, pas des jours) applique D8, mais rien ne l'appelle — `EVENT`
+  n'existe pas avant le lot 4. Même geste que les contributeurs dormants
+  d'`OCCUP` : déclaré et prouvé avant d'avoir un appelant, jamais réécrit à
+  l'arrivée de celui-ci.
+- **R8 est une délégation, pas un calcul.** `POLICY` n'existe pas encore (module
+  suivant, réglages sans rapport avec la disponibilité). `ContexteDisponibilite`
+  gagne `conflitsPolitique?: readonly Conflit[]` : la future Server Action
+  interroge `POLICY` d'abord, `AVAIL` reprend ses refus tels quels et les trie
+  avec les siens — jamais ne les recalcule. `AVAIL-024/025` le prouvent avec des
+  conflits construits à la main ; `POLICY` remplira ce tableau en vrai.
+- **`ORDRE_GRAVITE` n'a pas bougé** : R6 et R8 y avaient déjà leur place depuis
+  `AVAIL-A`, posée par anticipation. Un cas ajouté vérifie qu'un refus `AVAIL`
+  (capacité) passe bien avant un refus `POLICY` dans un résultat mêlé.
+- **Grilles S1→S12 et C1→C6 sans objet, vérifié et non supposé** : `grep -rn
+  availability src` ne rend toujours que le module lui-même.
 
 ## Deux points d'outillage
 
-- **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier` :
-  il réécrit tout en double quotes et points-virgules, contre le style du code.
+- **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier`.
   Le style se vérifie avec `npx eslint .`.
-- `AVAIL-B` se fait sur **Sonnet** : il applique un motif déjà posé, règle après
-  règle. `AVAIL-C` exigera de revenir sur **Opus**.
+- `AVAIL-C` exige de repasser sur **Opus** avant tout code — c'est le seul
+  endroit où les huit règles se combinent, et les fautes qui ne ressemblent pas
+  à des fautes s'y cachent (Mode Opératoire, tableau des sessions).

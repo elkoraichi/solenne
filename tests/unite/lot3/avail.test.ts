@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { jour } from '@/domain/core/dates'
+import { instantDepuisHeureParis, jour } from '@/domain/core/dates'
 import {
+  conflit,
   resumePourSolenne,
   type ResultatDisponibilite,
 } from '@/domain/availability/conflits'
 import {
+  verifierChevauchementEvenements,
   verifierDisponibilite,
   type ContexteDisponibilite,
   type DemandeDisponibilite,
@@ -14,9 +16,10 @@ import {
 import type { Presence } from '@/domain/occupancy/registre'
 
 /**
- * `AVAIL` — arrêt S3 : garde-fou G1 (fichier voisin), R1 blocages,
- * R2/R3 exclusivité, R4 capacité. Les règles R5→R8 arrivent à l'arrêt S4,
- * leurs combinaisons à S5.
+ * `AVAIL` — garde-fou G1 (fichier voisin), les 8 règles.
+ * Arrêt S3 : contrôles préalables, R1, R2, R3, R4.
+ * Arrêt S4 : R5 cohabitation, R6 événements (dormant), R7 séjour pendant
+ * événement, R8 délégation à `POLICY`. Leurs combinaisons arrivent à S5.
  */
 
 function demande(modifications: Partial<DemandeDisponibilite> = {}): DemandeDisponibilite {
@@ -218,6 +221,181 @@ describe('AVAIL-009 à 013 — R4, la capacité', () => {
 
     expect(codes(resultat)).toEqual(['CAPACITY_EXCEEDED'])
     expect(resultat.conflits[0]?.details?.total).toBe(11)
+  })
+})
+
+describe('AVAIL-014 à 017 — R5, la cohabitation n’a pas de code : c’est l’absence de R2/R4', () => {
+  it('AVAIL-014 — un séjour de 4 plus une demande de 3 tient à 7/10', () => {
+    const resultat = verifierDisponibilite(
+      demande({ personnes: 3 }),
+      contexte({ sejours: [sejour()], presences: [presence(4)] }),
+    )
+
+    expect(resultat).toEqual({ compatible: true, conflits: [] })
+  })
+
+  it('AVAIL-015 — trois séjours simultanés tiennent à 11/12', () => {
+    const resultat = verifierDisponibilite(
+      demande({ personnes: 4 }),
+      contexte({
+        capacite: 12,
+        presences: [
+          presence(4, { reference: 'sejour-a' }),
+          presence(3, { reference: 'sejour-b' }),
+        ],
+      }),
+    )
+
+    expect(resultat).toEqual({ compatible: true, conflits: [] })
+  })
+
+  it('AVAIL-016 — cohabitation partielle : seul le 10 dépasse (11/10)', () => {
+    const resultat = verifierDisponibilite(
+      demande({ arrivee: jour('2026-09-10'), depart: jour('2026-09-14'), personnes: 5 }),
+      contexte({
+        presences: [presence(6, { arrivee: jour('2026-09-08'), depart: jour('2026-09-11') })],
+      }),
+    )
+
+    expect(resultat.compatible).toBe(false)
+    expect(codes(resultat)).toEqual(['CAPACITY_EXCEEDED'])
+    expect(resultat.conflits[0]?.details?.total).toBe(11)
+  })
+
+  it('AVAIL-017 — aucun chevauchement, aucune interférence', () => {
+    const resultat = verifierDisponibilite(
+      demande({ arrivee: jour('2026-09-10'), depart: jour('2026-09-12') }),
+      contexte({
+        presences: [presence(6, { arrivee: jour('2026-09-08'), depart: jour('2026-09-10') })],
+      }),
+    )
+
+    expect(resultat).toEqual({ compatible: true, conflits: [] })
+  })
+})
+
+describe('AVAIL-018 à 020 — R6, deux événements qui se chevauchent (D8) — dormant', () => {
+  // `verifierChevauchementEvenements` applique déjà la règle ; personne ne
+  // l'appelle encore (`EVENT` arrive au lot 4). Les trois cas la testent
+  // directement, comme un futur appelant le fera.
+  function evenement(depart: string, debutH: number, finH: number) {
+    const jourLocal = jour(depart)
+    return {
+      reference: 'evenement-existant',
+      debut: instantDepuisHeureParis(jourLocal, debutH),
+      fin: instantDepuisHeureParis(jourLocal, finH),
+    }
+  }
+
+  it('AVAIL-018 — 14h→22h et 18h→23h le même jour se chevauchent', () => {
+    const resultat = verifierChevauchementEvenements(
+      { debut: instantDepuisHeureParis(jour('2026-09-12'), 18), fin: instantDepuisHeureParis(jour('2026-09-12'), 23) },
+      [evenement('2026-09-12', 14, 22)],
+    )
+
+    expect(resultat).toEqual(conflit('R6', 'EVENT_OVERLAP'))
+  })
+
+  it('AVAIL-019 — 14h→18h puis 18h→22h sont contigus, pas chevauchants', () => {
+    const resultat = verifierChevauchementEvenements(
+      { debut: instantDepuisHeureParis(jour('2026-09-12'), 18), fin: instantDepuisHeureParis(jour('2026-09-12'), 22) },
+      [evenement('2026-09-12', 14, 18)],
+    )
+
+    expect(resultat).toBeNull()
+  })
+
+  it('AVAIL-020 — deux jours distincts, aucun conflit', () => {
+    const resultat = verifierChevauchementEvenements(
+      { debut: instantDepuisHeureParis(jour('2026-09-13'), 14), fin: instantDepuisHeureParis(jour('2026-09-13'), 22) },
+      [evenement('2026-09-12', 14, 22)],
+    )
+
+    expect(resultat).toBeNull()
+  })
+})
+
+describe('AVAIL-021 à 023 — R7, un séjour pendant un événement est le cas nominal (D3)', () => {
+  // Aucun code n'existe pour « un événement a lieu » : rien ne le vérifie, donc
+  // rien ne le refuse. Seule R4 arbitre — ici via les dormeurs de l'événement.
+  // `DORMEUR_ÉVÉNEMENT` étant encore dormant dans `OCCUP` (lot 4 l'activera),
+  // ces dormeurs sont représentés par des séjours confirmés, comme `OCCUP-018`
+  // l'a fait avant nous : le mécanisme est identique, seule la source change.
+
+  it('AVAIL-021 — cas nominal : un événement a lieu, la demande passe', () => {
+    const resultat = verifierDisponibilite(
+      demande({ arrivee: jour('2026-09-11'), depart: jour('2026-09-13'), personnes: 4 }),
+      contexte({ capacite: 15 }),
+    )
+
+    expect(resultat).toEqual({ compatible: true, conflits: [] })
+  })
+
+  it('AVAIL-022 — capacité saturée par les dormeurs de l’événement : c’est R4 qui tranche, pas R7', () => {
+    const resultat = verifierDisponibilite(
+      demande({ personnes: 5 }),
+      contexte({ capacite: 15, presences: [presence(12, { reference: 'dormeurs-evenement' })] }),
+    )
+
+    expect(resultat.compatible).toBe(false)
+    expect(codes(resultat)).toEqual(['CAPACITY_EXCEEDED'])
+  })
+
+  it('AVAIL-023 — plusieurs séjours pendant l’événement, la place suffit encore', () => {
+    const resultat = verifierDisponibilite(
+      demande({ personnes: 5 }),
+      contexte({
+        capacite: 20,
+        presences: [
+          presence(3, { reference: 'sejour-a' }),
+          presence(4, { reference: 'sejour-b' }),
+        ],
+      }),
+    )
+
+    expect(resultat).toEqual({ compatible: true, conflits: [] })
+  })
+})
+
+describe('AVAIL-024 et 025 — R8, `AVAIL` rapporte les refus de `POLICY`, il ne les calcule pas', () => {
+  it('AVAIL-024 — un seul refus de politique', () => {
+    const resultat = verifierDisponibilite(
+      demande(),
+      contexte({ conflitsPolitique: [conflit('R8', 'MIN_LEAD_TIME', { parametres: { n: 48 } })] }),
+    )
+
+    expect(resultat.compatible).toBe(false)
+    expect(codes(resultat)).toEqual(['MIN_LEAD_TIME'])
+    expect(resultat.conflits[0]?.message).toBe('Il faut demander au moins 48 h à l’avance.')
+  })
+
+  it('AVAIL-025 — plusieurs refus de politique, tous rapportés', () => {
+    const resultat = verifierDisponibilite(
+      demande(),
+      contexte({
+        conflitsPolitique: [
+          conflit('R8', 'MAX_DURATION', { parametres: { n: 7 } }),
+          conflit('R8', 'MAX_ADVANCE', { parametres: { n: 180 } }),
+        ],
+      }),
+    )
+
+    expect(resultat.compatible).toBe(false)
+    expect(codes(resultat)).toEqual(['MAX_DURATION', 'MAX_ADVANCE'])
+  })
+
+  it('mêle un refus de politique à un refus d’`AVAIL`, trié par gravité', () => {
+    const resultat = verifierDisponibilite(
+      demande(),
+      contexte({
+        presences: [presence(8)],
+        conflitsPolitique: [conflit('R8', 'MAX_DURATION', { parametres: { n: 7 } })],
+      }),
+    )
+
+    // R4 (capacité) passe avant R8 (`ORDRE_GRAVITE`) : ce qui se corrige en
+    // changeant un nombre d'abord, ce qui tient à un réglage ensuite.
+    expect(codes(resultat)).toEqual(['CAPACITY_EXCEEDED', 'MAX_DURATION'])
   })
 })
 
