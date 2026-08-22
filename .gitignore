@@ -16,6 +16,8 @@ npm-debug.log*
 
 /test-results/
 /playwright-report/
+# Captures d'écran régénérées à chaque campagne E2E (`tests/e2e/apercus.spec.ts`)
+/Rapports/apercus-lot*/
 /blob-report/
 /playwright/.cache/
 tests/e2e/.session/

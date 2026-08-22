@@ -12,7 +12,14 @@ import { hash } from '@node-rs/argon2'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { ajouterJours, debutDeJour, instantDepuisHeureParis } from '../src/domain/core/dates'
+import { chargerFichierEnv } from '../src/env/fichier'
 import { PrismaClient } from '../src/generated/prisma/client'
+import {
+  importerPhoto,
+  importerPhotos,
+  PHOTOS_ESPACES,
+  PHOTOS_MAISON,
+} from './photos-demo'
 
 // --- Garde de production (SETUP-010) ------------------------------------------
 
@@ -26,7 +33,7 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1)
 }
 
-process.loadEnvFile?.('.env')
+chargerFichierEnv()
 
 const urlBase = process.env.DATABASE_URL
 if (!urlBase) {
@@ -41,17 +48,21 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: urlB
 const CAPACITE_PROVISOIRE = 10 // D1 : paramétrable 1→25, provisoirement 10
 const MOT_DE_PASSE_DEMO = 'DemoSolenne2026!'
 
+// Les noms suivent les photos fournies par Solenne (`Photos/`), qui font foi.
 const CHAMBRES = [
-  { nom: 'Chambre bleue', lit: '1 lit double', couchages: 2 },
+  { nom: 'Chambre blanche', lit: '1 lit double', couchages: 2 },
+  { nom: 'Chambre jaune', lit: '1 lit double', couchages: 2 },
   { nom: 'Chambre verte', lit: '2 lits simples', couchages: 2 },
-  { nom: 'Chambre ocre', lit: '1 lit double', couchages: 2 },
   { nom: 'Chambre mansardée', lit: '2 lits simples', couchages: 2 },
   { nom: 'Canapé-lit du salon', lit: '1 convertible', couchages: 2 },
 ] as const
 
 const BUREAUX = [
-  { nom: 'Bureau 1', equipements: ['bureau', 'écran', 'Wi-Fi', 'imprimante'] },
-  { nom: 'Bureau 2', equipements: ['bureau', 'écran', 'fauteuil'] },
+  {
+    nom: 'Bureau de Julien',
+    equipements: ['bureau', 'écran', 'Wi-Fi', 'imprimante'],
+  },
+  { nom: 'Bureau de Solenne', equipements: ['bureau', 'écran', 'fauteuil'] },
 ] as const
 
 const AMIS = [
@@ -82,6 +93,7 @@ const TABLES_A_VIDER = [
   'events',
   'blocked_periods',
   'booking_settings',
+  'house_rule_versions',
   'house_rules',
   'spaces',
   'houses',
@@ -156,6 +168,8 @@ async function main() {
 
   // --- La maison ---------------------------------------------------------
 
+  const photosMaison = await importerPhotos(PHOTOS_MAISON)
+
   const maison = await prisma.house.create({
     data: {
       name: 'La maison de Solenne',
@@ -163,66 +177,96 @@ async function main() {
         'Une maison de campagne en pierre, un grand jardin, une longue table sous le tilleul. On y vient pour se poser.',
       address: 'Provisoire — à renseigner',
       capacityMax: CAPACITE_PROVISOIRE,
-      photos: [],
+      photos: photosMaison,
+      coverImage: photosMaison[0] ?? null,
     },
   })
 
-  await prisma.space.createMany({
-    data: [
-      ...CHAMBRES.map((chambre, index) => ({
+  // `SPACE` — chaque pièce reçoit sa photo quand Solenne en a fourni une.
+  const photoDe = async (nom: string): Promise<string[]> => {
+    const photo = PHOTOS_ESPACES[nom]
+    if (!photo) return []
+    const url = await importerPhoto(photo)
+    return url ? [url] : []
+  }
+
+  for (const [index, chambre] of CHAMBRES.entries()) {
+    await prisma.space.create({
+      data: {
         houseId: maison.id,
-        type: 'ROOM' as const,
+        type: 'ROOM',
         name: chambre.nom,
         bedType: chambre.lit,
         sleeps: chambre.couchages,
+        photos: await photoDe(chambre.nom),
         order: index,
-      })),
-      ...BUREAUX.map((bureau, index) => ({
+      },
+    })
+  }
+
+  for (const [index, bureau] of BUREAUX.entries()) {
+    await prisma.space.create({
+      data: {
         houseId: maison.id,
-        type: 'OFFICE' as const,
+        type: 'OFFICE',
         name: bureau.nom,
         amenities: [...bureau.equipements],
         sleeps: 0,
+        photos: await photoDe(bureau.nom),
         order: CHAMBRES.length + index,
-      })),
-    ],
-  })
+      },
+    })
+  }
 
-  await prisma.houseRule.createMany({
-    data: [
-      {
+  const REGLES = [
+    {
+      title: 'Le calme après 22 h',
+      body: 'Les voisins sont proches et se lèvent tôt. On baisse le ton et la musique après 22 h.',
+      icon: 'moon',
+      requiresAcceptance: true,
+    },
+    {
+      title: 'On ne fume pas à l’intérieur',
+      body: 'La terrasse est là pour ça, un cendrier vous y attend.',
+      icon: 'cigarette-off',
+      requiresAcceptance: true,
+    },
+    {
+      title: 'La maison est rendue comme on l’a trouvée',
+      body: 'Un coup de balai, la vaisselle rangée, le tri fait. Rien d’insurmontable.',
+      icon: 'broom',
+      requiresAcceptance: false,
+    },
+    {
+      title: 'Les enfants près de la piscine',
+      body: 'Toujours accompagnés d’un adulte. Le portillon se referme seul, on vérifie quand même.',
+      icon: 'waves',
+      requiresAcceptance: true,
+    },
+  ] as const
+
+  // Chaque règle naît avec sa version 1 : aucune règle sans historique (HOUSE-R6).
+  for (const [index, regle] of REGLES.entries()) {
+    await prisma.houseRule.create({
+      data: {
         houseId: maison.id,
-        title: 'Le calme après 22 h',
-        body: 'Les voisins sont proches et se lèvent tôt. On baisse le ton et la musique après 22 h.',
-        icon: 'moon',
-        order: 0,
-        requiresAcceptance: true,
+        title: regle.title,
+        body: regle.body,
+        icon: regle.icon,
+        order: index,
+        requiresAcceptance: regle.requiresAcceptance,
+        version: 1,
+        versions: {
+          create: {
+            version: 1,
+            title: regle.title,
+            body: regle.body,
+            requiresAcceptance: regle.requiresAcceptance,
+          },
+        },
       },
-      {
-        houseId: maison.id,
-        title: 'On ne fume pas à l’intérieur',
-        body: 'La terrasse est là pour ça, un cendrier vous y attend.',
-        icon: 'cigarette-off',
-        order: 1,
-        requiresAcceptance: true,
-      },
-      {
-        houseId: maison.id,
-        title: 'La maison est rendue comme on l’a trouvée',
-        body: 'Un coup de balai, la vaisselle rangée, le tri fait. Rien d’insurmontable.',
-        icon: 'broom',
-        order: 2,
-      },
-      {
-        houseId: maison.id,
-        title: 'Les enfants près de la piscine',
-        body: 'Toujours accompagnés d’un adulte. Le portillon se referme seul, on vérifie quand même.',
-        icon: 'waves',
-        order: 3,
-        requiresAcceptance: true,
-      },
-    ],
-  })
+    })
+  }
 
   await prisma.bookingSettings.create({
     data: {
@@ -399,6 +443,9 @@ async function main() {
   })
 
   // Séjour de Solenne : pas de demande, elle ne se demande rien à elle-même.
+  // `FULL` n'est pas une coquetterie d'illustration — c'est le défaut de ses
+  // séjours (`NIVEAU_PAR_DEFAUT_SOLENNE`), quand ceux du cercle partent en
+  // « Maison occupée ».
   await prisma.stay.create({
     data: {
       houseId: maison.id,
@@ -462,7 +509,7 @@ async function main() {
     [
       'Jeu de démonstration créé :',
       `  · ${comptes.utilisateurs} comptes (Solenne + ${AMIS.length} amis)`,
-      `  · 1 maison, capacité ${CAPACITE_PROVISOIRE}`,
+      `  · 1 maison, capacité ${CAPACITE_PROVISOIRE}, ${photosMaison.length} photos`,
       `  · ${comptes.espaces} espaces (${CHAMBRES.length} chambres, ${BUREAUX.length} bureaux)`,
       `  · ${comptes.evenements} événements, ${comptes.sejours} séjours, ${comptes.blocages} périodes bloquées`,
       '',

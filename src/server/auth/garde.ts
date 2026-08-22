@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { notFound, redirect } from 'next/navigation'
+
 import { ErreurMetier } from '@/domain/core/result'
 import type { Role } from '@/generated/prisma/enums'
 import { journaliserRefus } from '@/server/audit'
@@ -80,6 +82,38 @@ export function exigerAcces<T>(
 ): T {
   if (!ressource || !aLeDroit(ressource)) refusNeutre()
   return ressource
+}
+
+/**
+ * Garde d'une **page** d'administration (PERM-S08).
+ *
+ * `requireRole` est écrit pour les Server Actions : il lève un refus que
+ * l'enveloppe transforme en `Resultat`. Dans une page, ce refus n'a personne
+ * pour l'attraper — il devient une erreur 500, et une erreur 500 sur une URL
+ * devinée en dit déjà trop : elle prouve qu'il se passe quelque chose ici.
+ *
+ * La coquille d'administration rend déjà « page introuvable », mais Next rend
+ * la coquille et la page **en parallèle** : selon lequel des deux termine le
+ * premier, la réponse était tantôt 404, tantôt 500. Cette fonction supprime la
+ * course en donnant à la page la même issue qu'à sa coquille.
+ *
+ * L'entrée au journal d'audit, elle, est bien écrite : c'est `requireRole` qui
+ * s'en charge, avant de lever.
+ */
+export async function requireAdminPage(
+  action: string,
+): Promise<UtilisateurConnecte> {
+  try {
+    return await requireRole('ADMIN', action)
+  } catch (erreur) {
+    if (erreur instanceof ErreurMetier && erreur.code === 'FORBIDDEN') {
+      notFound()
+    }
+    if (erreur instanceof ErreurMetier && erreur.code === 'UNAUTHENTICATED') {
+      redirect('/connexion')
+    }
+    throw erreur
+  }
 }
 
 /** Vrai si l'appelant est Solenne. Pour ajuster un rendu, jamais pour protéger. */

@@ -1,5 +1,6 @@
 import { z, ZodError, type ZodType } from 'zod'
 
+import { jour } from './dates'
 import { echec, succes, type Resultat } from './result'
 
 // Messages Zod en français (D7 : pas de couche i18n, la langue est le français).
@@ -13,6 +14,30 @@ export const LONGUEURS = {
   moyenne: 500,
   longue: 5_000,
 } as const
+
+/**
+ * Un jour `AAAA-MM-JJ` venant du client, rendu sous forme de `Date` calée à
+ * minuit UTC. Écrit une seule fois : trois modules l'attendaient déjà.
+ */
+export const schemaJour = z
+  .string({ error: 'Cette date est obligatoire.' })
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Cette date n’est pas valide.' })
+  .refine(
+    (texte) => {
+      try {
+        jour(texte)
+        return true
+      } catch {
+        return false
+      }
+    },
+    { error: 'Cette date n’existe pas.' },
+  )
+  .transform((texte) => jour(texte))
+
+/** Un identifiant opaque venant du client. Borné, jamais interprété. */
+export const schemaIdentifiant = z.string().trim().min(1).max(100)
 
 /**
  * Transforme les défauts d'un schéma en messages par champ.

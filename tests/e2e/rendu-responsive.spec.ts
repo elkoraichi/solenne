@@ -12,9 +12,10 @@ import {
 /**
  * UI-002 → UI-006, UI-009, UI-010 : rendu en 320 / 768 / 1440 px.
  *
- * Onze écrans sur douze existent à la fin du lot 1. Manquent le tableau de bord
- * réel (lot 7, `DASH`) et les écrans de séjour et d'événement, qui remplaceront
- * les pages « à venir » — chacun rejoindra cette campagne à sa livraison.
+ * La fiche de la maison et sa console de gestion ont rejoint la campagne au
+ * lot 2. Manquent encore le tableau de bord réel (lot 7, `DASH`) et les écrans
+ * de séjour et d'événement, qui remplaceront les pages « à venir » — chacun
+ * rejoindra cette liste à sa livraison.
  */
 
 /** Écrans publics : sous la coquille d'authentification, sans navigation basse. */
@@ -27,12 +28,15 @@ const ECRANS_PUBLICS = [
 /** Écrans du cercle : coquille applicative, navigation basse comprise. */
 const ECRANS_CERCLE = [
   { chemin: '/', nom: 'accueil' },
-  { chemin: '/agenda', nom: 'agenda' },
+  { chemin: '/agenda', nom: 'agenda — vue Mois' },
+  { chemin: '/agenda?vue=semaine', nom: 'agenda — vue Semaine' },
+  { chemin: '/agenda?vue=liste', nom: 'agenda — vue Liste' },
   { chemin: '/sejours', nom: 'séjours' },
   { chemin: '/maison', nom: 'maison' },
   { chemin: '/profil', nom: 'profil' },
   { chemin: '/profil/email/jeton-quelconque', nom: 'confirmation d’adresse' },
   { chemin: '/gerer', nom: 'console de gestion' },
+  { chemin: '/gerer/maison', nom: 'gestion de la maison' },
 ] as const
 
 /** Solenne voit un onglet de plus que les amis : « Gérer » (UI §2). */
@@ -76,44 +80,23 @@ test.describe('Écrans publics', () => {
   }
 })
 
-test.describe('Vitrine des composants', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/vitrine')
-    await page.waitForLoadState('networkidle')
-  })
-
-  test('UI-003/004/005 — aucun débordement horizontal', async ({ page }) => {
-    await verifierAucunDebordement(page)
-  })
-
-  test('UI-002 — toutes les cibles tactiles font au moins 44 × 44 px', async ({
-    page,
-  }) => {
-    expect(await ciblesTropPetites(page)).toEqual([])
-  })
-
-  test('UI-010 — une image cassée retombe sur les initiales', async ({
-    page,
-  }) => {
-    // Le repli est décidé côté client, à l'échec du chargement de l'image.
-    await expect(page.getByText('PC', { exact: true })).toBeVisible({
-      timeout: 15_000,
-    })
-    await expect(page.locator('img[src="/image-inexistante.jpg"]')).toHaveCount(
-      0,
-    )
-  })
-
-  test('la pastille des demandes à traiter est visible sur « Gérer »', async ({
-    page,
-  }) => {
-    await expect(page.getByRole('link', { name: /Gérer/ })).toContainText('2')
-  })
-
-  test('CORE-R1 — aucune trace technique à l’écran', async ({ page }) => {
-    await verifierAucuneFuite(page)
-  })
-})
+/**
+ * La vitrine des composants n'est plus dans cette campagne.
+ *
+ * Elle `notFound()` en production (`src/app/vitrine/page.tsx`) : c'est un
+ * support de mise au point, il n'a jamais eu vocation à être mis en ligne. Tant
+ * que la campagne tournait sur le serveur de développement, cinq tests
+ * l'interrogeaient — dont trois qui passaient à vide, faute de trouver quoi que
+ * ce soit à mesurer sur une page absente.
+ *
+ * Ce qu'ils vérifiaient est repris là où il vit vraiment :
+ * — UI-002, UI-003/004/005 et CORE-R1 sur les dix écrans réels, plus bas ;
+ * — UI-010 et la pastille de « Gérer » au niveau du composant, dans
+ *   `tests/unite/ui/composants.test.tsx` et `navigation.test.tsx`, où l'on peut
+ *   casser une image pour de bon au lieu d'espérer qu'elle casse.
+ *
+ * La vitrine reste en place pour le jugement visuel de Yassine (limite L2).
+ */
 
 test.describe('Écrans du cercle', () => {
   test.use({ storageState: fichierSession('solenne') })
@@ -197,6 +180,26 @@ test.describe('Écrans du cercle', () => {
       })
     })
   }
+})
+
+test.describe('SPACE-011 — les chambres et les bureaux', () => {
+  test.use({ storageState: fichierSession('solenne') })
+
+  test('les cartes des espaces tiennent dans la largeur', async ({ page }) => {
+    await page.goto('/maison')
+    await page.waitForLoadState('networkidle')
+
+    const section = page.getByRole('region', { name: 'Chambres et bureaux' })
+    await expect(section.getByRole('listitem').first()).toBeVisible()
+
+    const largeurPage = page.viewportSize()?.width ?? 0
+    for (const carte of await section.getByRole('listitem').all()) {
+      const boite = await carte.boundingBox()
+      expect((boite?.x ?? 0) + (boite?.width ?? 0)).toBeLessThanOrEqual(
+        largeurPage + 1,
+      )
+    }
+  })
 })
 
 test.describe('CORE-R1 — page inexistante', () => {

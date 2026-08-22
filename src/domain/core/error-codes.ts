@@ -55,15 +55,24 @@ export const CODES_IDENTITE = [
   'FILE_NOT_IMAGE',
 ] as const
 
+/** Refus propres à la maison — lot 2 (`HOUSE`, `SPACE`, `BLOCK`). */
+export const CODES_MAISON = [
+  'TOO_MANY_PHOTOS',
+  'CAPACITY_BELOW_OCCUPANCY',
+  'BLOCKED_OVER_STAY',
+] as const
+
 export const CODES = [
   ...CODES_METIER,
   ...CODES_TRANSVERSES,
   ...CODES_IDENTITE,
+  ...CODES_MAISON,
 ] as const
 
 export type CodeMetier = (typeof CODES_METIER)[number]
 export type CodeTransverse = (typeof CODES_TRANSVERSES)[number]
 export type CodeIdentite = (typeof CODES_IDENTITE)[number]
+export type CodeMaison = (typeof CODES_MAISON)[number]
 export type CodeErreur = (typeof CODES)[number]
 
 const TOUS = new Set<string>(CODES)

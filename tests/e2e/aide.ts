@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /**
  * Outillage commun des parcours en navigateur.
@@ -31,6 +31,26 @@ export async function connecter(page: Page, compte: Compte): Promise<void> {
   await expect(
     page.getByRole('navigation', { name: 'Navigation principale' }),
   ).toBeVisible({ timeout: 30_000 })
+}
+
+/**
+ * Un clic qui attend d'avoir servi à quelque chose.
+ *
+ * Un bouton existe dans le HTML **avant** que React ne lui attache son
+ * comportement. Cliquer dans cet intervalle ne fait rien, et le test s'épuise à
+ * attendre un formulaire qui ne s'ouvrira jamais — d'autant plus en mode
+ * développement, où les scripts arrivent tard. On re-clique donc tant que le
+ * témoin attendu n'est pas apparu, plutôt que de parier sur un délai.
+ */
+export async function cliquerJusquA(
+  bouton: Locator,
+  temoin: Locator,
+): Promise<void> {
+  await expect(async () => {
+    if (await temoin.isVisible()) return
+    if (await bouton.isVisible()) await bouton.click()
+    await expect(temoin).toBeVisible({ timeout: 2_000 })
+  }).toPass({ timeout: 30_000 })
 }
 
 export const CIBLE_TACTILE_MIN = 44
@@ -90,6 +110,44 @@ export async function verifierTitresBornes(page: Page): Promise<void> {
     if (!boite) continue
     expect(boite.width).toBeLessThanOrEqual(largeurFenetre + 1)
   }
+}
+
+/**
+ * Textes rognés ou superposés — la famille de défauts que les mesures d'écran
+ * ont laissée passer trois modules de suite (`HOUSE`, `SPACE`, `BLOCK`).
+ *
+ * Aucun de ces trois défauts ne débordait de la fenêtre : le texte était coupé
+ * *à l'intérieur* de sa boîte, ou recouvert par un voisin. On regarde donc, pour
+ * chaque porteur de texte, si son contenu tient dans la largeur qu'on lui donne.
+ *
+ * `sélecteur` cadre la vérification sur une zone : appliquée à une page entière
+ * elle ramasserait des faux positifs (défilements volontaires, `truncate`).
+ */
+export async function textesRognes(
+  page: Page,
+  selecteur: string,
+): Promise<string[]> {
+  return page.$$eval(`${selecteur} :is(p, span, h1, h2, h3, h4, li, label)`, (
+    noeuds,
+  ) =>
+    noeuds
+      .filter((noeud) => {
+        const element = noeud as HTMLElement
+        if (element.offsetParent === null) return false
+        // Un conteneur qui défile volontairement n'est pas rogné.
+        const style = getComputedStyle(element)
+        if (style.overflowX !== 'visible' && style.overflowX !== 'clip') {
+          return false
+        }
+        return element.scrollWidth > element.clientWidth + 1
+      })
+      .map((noeud) => {
+        const element = noeud as HTMLElement
+        return `${element.tagName.toLowerCase()} « ${
+          element.textContent?.trim().slice(0, 40) ?? ''
+        } » — ${element.scrollWidth} px dans ${element.clientWidth} px`
+      }),
+  )
 }
 
 /** CORE-R1 : rien de technique ne parvient jusqu'à l'écran. */

@@ -192,24 +192,47 @@ function formateur(cle: string, options: Intl.DateTimeFormatOptions) {
   return f
 }
 
+/**
+ * Met en forme un jour, en disant « 1er » là où le français le dit.
+ *
+ * `Intl` écrit « 1 septembre ». Personne ne parle ainsi : le premier jour du
+ * mois est le seul à porter son rang. La correction se fait sur la **partie**
+ * `day` du résultat, jamais sur la chaîne entière — sans quoi un millésime ou
+ * une heure commençant par 1 y passerait aussi.
+ */
+function mettreEnForme(
+  cle: string,
+  options: Intl.DateTimeFormatOptions,
+  valeur: Date,
+): string {
+  return formateur(cle, options)
+    .formatToParts(valeur)
+    .map((part) => (part.type === 'day' && part.value === '1' ? '1er' : part.value))
+    .join('')
+}
+
 /** « samedi 25 octobre 2026 » — pour un jour. */
 export function formaterJourLong(valeur: Date): string {
-  return formateur('jour-long', {
-    timeZone: 'UTC',
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(debutDeJour(valeur))
+  return mettreEnForme(
+    'jour-long',
+    {
+      timeZone: 'UTC',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    },
+    debutDeJour(valeur),
+  )
 }
 
 /** « 25 oct. » — pour un jour, en contexte compact. */
 export function formaterJourCourt(valeur: Date): string {
-  return formateur('jour-court', {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'short',
-  }).format(debutDeJour(valeur))
+  return mettreEnForme(
+    'jour-court',
+    { timeZone: 'UTC', day: 'numeric', month: 'short' },
+    debutDeJour(valeur),
+  )
 }
 
 /** « 25/10/2026 » — pour un jour. */
@@ -224,14 +247,18 @@ export function formaterJourNumerique(valeur: Date): string {
 
 /** « 25 octobre 2026 à 18:30 » — pour un instant, en heure de Paris. */
 export function formaterInstant(valeur: Date): string {
-  return formateur('instant', {
-    timeZone: FUSEAU_PARIS,
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(valeur)
+  return mettreEnForme(
+    'instant',
+    {
+      timeZone: FUSEAU_PARIS,
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+    valeur,
+  )
 }
 
 /** « 18:30 » — pour un instant, en heure de Paris. */
@@ -252,20 +279,20 @@ export function formaterPeriode(arrivee: Date, depart: Date): string {
     a.getUTCMonth() === d.getUTCMonth()
 
   if (memeMois) {
-    const jourSeul = formateur('jour-seul', {
-      timeZone: 'UTC',
-      day: 'numeric',
-    }).format(a)
+    const jourSeul = mettreEnForme(
+      'jour-seul',
+      { timeZone: 'UTC', day: 'numeric' },
+      a,
+    )
     return `du ${jourSeul} au ${formaterJourLongSansJourSemaine(d)}`
   }
   return `du ${formaterJourLongSansJourSemaine(a)} au ${formaterJourLongSansJourSemaine(d)}`
 }
 
 function formaterJourLongSansJourSemaine(valeur: Date): string {
-  return formateur('jour-long-sans-semaine', {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(debutDeJour(valeur))
+  return mettreEnForme(
+    'jour-long-sans-semaine',
+    { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' },
+    debutDeJour(valeur),
+  )
 }

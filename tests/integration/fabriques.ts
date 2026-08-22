@@ -1,6 +1,12 @@
 import { empreinteMotDePasse } from '@/server/auth/empreinte'
 import type { PrismaClient } from '@/generated/prisma/client'
-import type { Role, UserStatus } from '@/generated/prisma/enums'
+import type {
+  Role,
+  StayPrivacy,
+  StayRequestStatus,
+  StayStatus,
+  UserStatus,
+} from '@/generated/prisma/enums'
 
 /** Données de test — jamais d'adresse réelle : le TLD `.test` n'est pas routable. */
 
@@ -60,5 +66,75 @@ export async function creerAdministratrice(
 export async function creerMaison(client: PrismaClient, capacite = 10) {
   return client.house.create({
     data: { name: 'La maison de Solenne', capacityMax: capacite },
+  })
+}
+
+/** Un jour nu, calé à minuit UTC — même convention que le domaine. */
+export function leJour(texte: string): Date {
+  return new Date(`${texte}T00:00:00.000Z`)
+}
+
+export interface OptionsSejour {
+  readonly du: string
+  readonly au: string
+  readonly adultes?: number
+  readonly enfants?: number
+  readonly statut?: StayStatus
+  readonly niveau?: StayPrivacy
+  readonly sejourDeSolenne?: boolean
+  /** Rattache le séjour à une demande — c'est elle qui porte motif et commentaire. */
+  readonly demandeId?: string
+}
+
+export async function creerSejour(
+  client: PrismaClient,
+  maisonId: string,
+  utilisateurId: string,
+  options: OptionsSejour,
+) {
+  return client.stay.create({
+    data: {
+      houseId: maisonId,
+      userId: utilisateurId,
+      startDate: leJour(options.du),
+      endDate: leJour(options.au),
+      adults: options.adultes ?? 2,
+      children: options.enfants ?? 0,
+      status: options.statut ?? 'CONFIRMED',
+      ...(options.niveau ? { privacyLevel: options.niveau } : {}),
+      ...(options.sejourDeSolenne ? { isOwnerStay: true } : {}),
+      ...(options.demandeId ? { requestId: options.demandeId } : {}),
+    },
+  })
+}
+
+export interface OptionsDemande {
+  readonly du: string
+  readonly au: string
+  readonly adultes?: number
+  readonly enfants?: number
+  readonly statut?: StayRequestStatus
+  readonly motif?: string
+  readonly commentaire?: string
+  readonly besoins?: string
+}
+
+export async function creerDemande(
+  client: PrismaClient,
+  demandeurId: string,
+  options: OptionsDemande,
+) {
+  return client.stayRequest.create({
+    data: {
+      requesterId: demandeurId,
+      arrivalDate: leJour(options.du),
+      departureDate: leJour(options.au),
+      adults: options.adultes ?? 2,
+      children: options.enfants ?? 0,
+      status: options.statut ?? 'PENDING',
+      purpose: options.motif ?? null,
+      comment: options.commentaire ?? null,
+      specialNeeds: options.besoins ?? null,
+    },
   })
 }

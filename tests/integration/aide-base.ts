@@ -104,6 +104,7 @@ export const TABLES_METIER = [
   'events',
   'blocked_periods',
   'booking_settings',
+  'house_rule_versions',
   'house_rules',
   'spaces',
   'houses',

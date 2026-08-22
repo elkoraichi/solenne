@@ -6,7 +6,9 @@
  * donnée réelle en environnement de test).
  */
 
-process.loadEnvFile?.('.env')
+import { chargerFichierEnv } from '../src/env/fichier'
+
+chargerFichierEnv()
 
 const urlTest = process.env.TEST_DATABASE_URL
 if (!urlTest) {

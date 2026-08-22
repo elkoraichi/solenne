@@ -33,6 +33,7 @@ Yassine **n'est pas développeur**. Il ne débogue rien, ne lit pas de trace, ne
 | D6 | Domaine **non arrêté** (`chezsolenne.fr` ou `mamasolenne.fr`) → paramètre d'environnement, jamais en dur |
 | D7 | **Français uniquement**, pas de couche i18n |
 | D8 | Deux événements ne peuvent jamais se chevaucher |
+| D9 | Séjours **de Solenne** plus visibles par défaut (« prénom et nombre ») ; le réglage global ne vaut que pour le cercle |
 | — | Occupation : **option B** — registre de contributeurs (Mode Opératoire §6) |
 | — | Nom affiché de la maison = **donnée**, jamais un texte en dur |
 | — | WhatsApp : post-MVP, canal déclaré mais inactif |

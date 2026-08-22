@@ -1,8 +1,10 @@
 import { defineConfig, env } from 'prisma/config'
 
+import { chargerFichierEnv } from './src/env/fichier'
+
 // Prisma 7 ne charge plus `.env` automatiquement : on le fait explicitement,
 // avant toute lecture de `DATABASE_URL`.
-process.loadEnvFile?.('.env')
+chargerFichierEnv()
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

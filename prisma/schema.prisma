@@ -305,13 +305,37 @@ model HouseRule {
   order              Int      @default(0)
   active             Boolean  @default(true)
   requiresAcceptance Boolean  @default(false) @map("requires_acceptance")
+  /** Numéro de la version en vigueur (HOUSE-R6). */
+  version            Int      @default(1)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  house    House              @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  versions HouseRuleVersion[]
 
   @@index([houseId, order])
   @@map("house_rules")
+}
+
+/// HOUSE-R6 — historique du texte des règles.
+///
+/// Modifier une règle n'invalide pas les acceptations passées : le texte
+/// exactement accepté doit rester consultable. Chaque écriture d'une règle
+/// dépose donc ici une version, jamais écrasée.
+model HouseRuleVersion {
+  id                 String   @id @default(cuid())
+  ruleId             String   @map("rule_id")
+  version            Int
+  title              String
+  body               String
+  requiresAcceptance Boolean  @map("requires_acceptance")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  rule HouseRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, version])
+  @@index([ruleId, version])
+  @@map("house_rule_versions")
 }
 
 model BookingSettings {

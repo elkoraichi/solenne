@@ -86,6 +86,11 @@ function classer(erreur: unknown): Echec {
       case 'P2003':
       case 'P2014':
         return echec('CONFLICT')
+      // P2034 : deux transactions sérialisables se sont marché dessus. Ce n'est
+      // pas un incident technique — c'est une écriture concurrente, et le
+      // message « rechargez la page » est exactement le bon (C6).
+      case 'P2034':
+        return echec('CONFLICT')
       default:
         return echec('INTERNAL')
     }

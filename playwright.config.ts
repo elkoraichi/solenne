@@ -1,9 +1,20 @@
 import { defineConfig, devices } from '@playwright/test'
 
-process.loadEnvFile?.('.env')
+import { chargerFichierEnv } from './src/env/fichier'
+
+chargerFichierEnv()
 
 const PORT = Number(process.env.PORT_E2E ?? 3210)
 const ADRESSE = `http://127.0.0.1:${PORT}`
+
+/**
+ * Serveur de développement au lieu du build de production.
+ *
+ * Réservé à la mise au point d'un test isolé, où recompiler à chaque essai
+ * coûterait plus cher que l'instabilité. Une campagne complète, elle, se joue
+ * toujours sur le build — voir `webServer` plus bas.
+ */
+const EN_DEVELOPPEMENT = Boolean(process.env.E2E_DEV)
 
 /**
  * Parcours et vérifications de rendu.
@@ -17,6 +28,11 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
+
+  // 30 s par défaut. La console de Solenne les dépasse de temps à autre quand
+  // cinq navigateurs la demandent en même temps. Les assertions, elles, gardent
+  // leurs propres délais — rien n'est masqué.
+  timeout: 60_000,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
 
   use: {
@@ -46,12 +62,39 @@ export default defineConfig({
     },
   ],
 
+  /**
+   * La campagne se joue sur le **build de production**, pas sur le serveur de
+   * développement.
+   *
+   * En mode développement, Next compile chaque route au premier appel et
+   * réécrit ses manifestes pendant qu'il sert les pages. Trois tailles d'écran
+   * lancées en parallèle prennent ce chantier de plein fouet : sur trois
+   * campagnes complètes, trois échecs, chaque fois sur un test différent et
+   * chaque fois pour la même raison — une page rendue en erreur, ou une page
+   * arrivée trop tard pour être cliquée. Aucun ne portait sur l'application.
+   *
+   * Le build supprime la cause : plus de compilation à la demande, plus de
+   * manifeste réécrit sous le pied des tests. Il coûte une douzaine de
+   * secondes et, accessoirement, éprouve enfin ce qui sera réellement mis en
+   * ligne.
+   */
   webServer: {
-    command: `npx next dev --port ${PORT}`,
+    command: EN_DEVELOPPEMENT
+      ? `npx next dev --port ${PORT}`
+      : `npm run build && npx next start --port ${PORT}`,
     url: ADRESSE,
     reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    timeout: 300_000,
     stdout: 'ignore',
     stderr: 'pipe',
+    env: {
+      // Le build passe en `NODE_ENV=production`, où le contrat des variables
+      // d'environnement exige un émetteur d'emails (SETUP-004). La campagne
+      // n'envoie aucun courrier : elle fournit donc une valeur de façade,
+      // plutôt que d'affaiblir un garde-fou qui protège la mise en ligne.
+      RESEND_API_KEY: process.env.RESEND_API_KEY || 'cle-de-facade-parcours',
+      EMAIL_FROM:
+        process.env.EMAIL_FROM || 'La Maison de Solenne <parcours@exemple.test>',
+    },
   },
 })

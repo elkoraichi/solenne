@@ -13,7 +13,14 @@ import { CODES, type CodeErreur } from './error-codes'
 export const CATALOGUE_MESSAGES: Readonly<Record<CodeErreur, string>> = {
   // --- Les 11 refus métier du §12.4, au mot près ---
   BLOCKED_PERIOD: 'Ces dates ne sont pas disponibles.',
-  CAPACITY_EXCEEDED: 'La maison serait à {n} personnes pour {max} places.',
+  // PRIV-005 / PRIV-S12 : le §12.4 écrivait « La maison serait à {n} personnes
+  // pour {max} places ». Ce message est destiné à un **ami** : les deux nombres
+  // lui apprennent combien de personnes occupent déjà la maison — y compris
+  // celles d'un séjour caché, qu'il n'a pas le droit de deviner (PRIV-R5, R6).
+  // Le refus reste le même, il ne se justifie plus. Le détail chiffré revient à
+  // `STAYDEC` (lot 3), sur l'écran de Solenne, où il est légitime.
+  CAPACITY_EXCEEDED:
+    'La maison n’a plus assez de place sur ces dates. Essayez d’autres dates.',
   EXCLUSIVE_CONFLICT: 'La maison est déjà privatisée sur ces dates.',
   EXCLUSIVE_REQUEST_CONFLICT:
     "Un séjour est déjà prévu : la privatisation n'est pas possible.",
@@ -69,6 +76,14 @@ export const CATALOGUE_MESSAGES: Readonly<Record<CodeErreur, string>> = {
     'Cette personne a {n} séjour(s) à venir. Confirmez pour continuer.',
   FILE_TOO_LARGE: 'Cette image dépasse {max} Mo.',
   FILE_NOT_IMAGE: 'Ce fichier n’est pas une image.',
+
+  // --- La maison (lot 2) ---
+  TOO_MANY_PHOTOS:
+    'La galerie est limitée à {max} photos. Retirez-en une avant d’en ajouter.',
+  CAPACITY_BELOW_OCCUPANCY:
+    'La maison accueille déjà {n} personnes le {jour}. Annulez ou réduisez ces séjours avant de descendre à {max} places.',
+  BLOCKED_OVER_STAY:
+    'Un séjour confirmé occupe ces dates : {qui}, {periode}. Annulez-le avant de bloquer la période.',
 }
 
 export type ParametresMessage = Readonly<Record<string, string | number>>

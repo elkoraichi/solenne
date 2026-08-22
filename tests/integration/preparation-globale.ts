@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
+import { chargerFichierEnv } from '../../src/env/fichier'
+
 const executer = promisify(execFile)
 
 /**
@@ -8,7 +10,7 @@ const executer = promisify(execFile)
  * Chaque suite repart ensuite d'un jeu de données vide.
  */
 export async function setup(): Promise<void> {
-  process.loadEnvFile?.('.env')
+  chargerFichierEnv()
 
   const url = process.env.TEST_DATABASE_URL
   if (!url) {

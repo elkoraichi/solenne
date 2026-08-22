@@ -1,10 +1,8 @@
 import 'server-only'
 
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, normalize } from 'node:path'
-
-import sharp from 'sharp'
 
 import {
   COTE_AVATAR_PX,
@@ -13,6 +11,11 @@ import {
   TAILLE_MAX_OCTETS,
 } from '@/domain/core/images'
 import { ErreurMetier } from '@/domain/core/result'
+import {
+  DOSSIER_TELEVERSEMENTS as DOSSIER,
+  normaliserCarre,
+  normaliserPhoto,
+} from '@/server/stockage/normalisation'
 
 /**
  * Réception et stockage des images.
@@ -27,19 +30,14 @@ import { ErreurMetier } from '@/domain/core/result'
  * un stockage distant (lot 7, `DEPLOY`) ne touchera que ce fichier.
  */
 
-const DOSSIER = '.televersements'
-
 export interface ImageStockee {
   readonly chemin: string
   readonly url: string
   readonly octets: number
 }
 
-/**
- * Vérifie, redimensionne et range une image d'avatar.
- * Renvoie l'URL à enregistrer sur le profil.
- */
-export async function stockerAvatar(fichier: File): Promise<ImageStockee> {
+/** Contrôles communs à tous les téléversements. Renvoie les octets vérifiés. */
+async function octetsVerifies(fichier: File): Promise<Uint8Array> {
   if (fichier.size > TAILLE_MAX_OCTETS) {
     throw new ErreurMetier('FILE_TOO_LARGE', {
       parametres: { max: TAILLE_MAX_MO },
@@ -57,22 +55,10 @@ export async function stockerAvatar(fichier: File): Promise<ImageStockee> {
   }
   if (!formatReconnu(brut)) throw new ErreurMetier('FILE_NOT_IMAGE')
 
-  let normalisee: Buffer
-  try {
-    // Le ré-encodage vaut désinfection : ce qui sort de là est une image et
-    // rien d'autre — ni script, ni métadonnée, ni charge cachée.
-    normalisee = await sharp(brut)
-      .rotate()
-      .resize(COTE_AVATAR_PX, COTE_AVATAR_PX, {
-        fit: 'cover',
-        position: 'attention',
-      })
-      .webp({ quality: 82 })
-      .toBuffer()
-  } catch {
-    throw new ErreurMetier('FILE_NOT_IMAGE')
-  }
+  return brut
+}
 
+async function ranger(normalisee: Buffer): Promise<ImageStockee> {
   const nom = `${randomUUID()}.webp`
   await mkdir(DOSSIER, { recursive: true })
   await writeFile(join(DOSSIER, nom), normalisee)
@@ -84,9 +70,50 @@ export async function stockerAvatar(fichier: File): Promise<ImageStockee> {
   }
 }
 
+/**
+ * Vérifie, redimensionne et range une image d'avatar.
+ * Renvoie l'URL à enregistrer sur le profil.
+ */
+export async function stockerAvatar(fichier: File): Promise<ImageStockee> {
+  const brut = await octetsVerifies(fichier)
+
+  let normalisee: Buffer
+  try {
+    normalisee = await normaliserCarre(brut, COTE_AVATAR_PX)
+  } catch {
+    throw new ErreurMetier('FILE_NOT_IMAGE')
+  }
+
+  return ranger(normalisee)
+}
+
+/**
+ * Vérifie, redimensionne et range une photo de la maison ou d'un espace
+ * (HOUSE-011). Contrairement à l'avatar, les proportions sont conservées :
+ * une terrasse en paysage ne devient pas un carré.
+ */
+export async function stockerPhoto(fichier: File): Promise<ImageStockee> {
+  const brut = await octetsVerifies(fichier)
+
+  let normalisee: Buffer
+  try {
+    normalisee = await normaliserPhoto(brut)
+  } catch {
+    throw new ErreurMetier('FILE_NOT_IMAGE')
+  }
+
+  return ranger(normalisee)
+}
+
+/** Nom de fichier sûr extrait d'une URL `/media/…`, ou `null`. */
+function nomDepuisUrl(url: string): string | null {
+  const nom = url.startsWith('/media/') ? url.slice('/media/'.length) : url
+  return /^[\w-]+\.webp$/.test(nom) ? nom : null
+}
+
 /** Lit une image stockée. Refuse tout nom qui tenterait de sortir du dossier. */
 export async function lireImage(nom: string): Promise<Buffer | null> {
-  if (!/^[\w-]+\.webp$/.test(nom)) return null
+  if (!nomDepuisUrl(nom)) return null
   const chemin = normalize(join(DOSSIER, nom))
   if (!chemin.startsWith(DOSSIER)) return null
 
@@ -95,4 +122,20 @@ export async function lireImage(nom: string): Promise<Buffer | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * Efface le fichier d'une photo retirée de la galerie.
+ *
+ * Au mieux : la base fait foi. Un fichier orphelin encombre un disque, une
+ * suppression qui échoue ne doit pas faire échouer l'action de Solenne.
+ */
+export async function supprimerImage(url: string): Promise<void> {
+  const nom = nomDepuisUrl(url)
+  if (!nom) return
+
+  const chemin = normalize(join(DOSSIER, nom))
+  if (!chemin.startsWith(DOSSIER)) return
+
+  await rm(chemin, { force: true }).catch(() => undefined)
 }

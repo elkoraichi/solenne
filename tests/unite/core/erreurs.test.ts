@@ -152,16 +152,17 @@ describe('CORE-005 — résultat typé', () => {
   it('convertit une erreur métier en refus explicite', async () => {
     const restaurer = configurerSortieJournal(() => {})
     const resultat = await executerAction('demanderSejour', async () => {
-      throw new ErreurMetier('CAPACITY_EXCEEDED', {
-        parametres: { n: 12, max: 10 },
+      throw new ErreurMetier('CAPACITY_BELOW_OCCUPANCY', {
+        parametres: { n: 12, jour: 'vendredi 11 septembre', max: 10 },
       })
     })
     restaurer()
 
     expect(resultat).toEqual({
       ok: false,
-      code: 'CAPACITY_EXCEEDED',
-      message: 'La maison serait à 12 personnes pour 10 places.',
+      code: 'CAPACITY_BELOW_OCCUPANCY',
+      message:
+        'La maison accueille déjà 12 personnes le vendredi 11 septembre. Annulez ou réduisez ces séjours avant de descendre à 10 places.',
     })
   })
 

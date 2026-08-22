@@ -21,8 +21,9 @@ const racine = process.cwd()
  * Écart assumé avec la fiche `SETUP-006`, qui annonce 18 tables : le §4 de
  * `02_Analyse_Architecture.md` en décrit en réalité 24. S'y ajoutent trois
  * tables exigées par le lot 1 — `password_reset_tokens` (`PWD`),
- * `email_change_requests` (`PROFILE`) et `rate_limit_hits` (`AUTH`).
- * Voir les rapports de fin de module `SETUP` et `AUTH`.
+ * `email_change_requests` (`PROFILE`) et `rate_limit_hits` (`AUTH`), puis
+ * `house_rule_versions` au lot 2 (`HOUSE-R6`).
+ * Voir les rapports de fin de module `SETUP`, `AUTH` et `HOUSE`.
  */
 const TABLES_ATTENDUES = [
   'accounts',
@@ -37,6 +38,7 @@ const TABLES_ATTENDUES = [
   'event_items',
   'event_participants',
   'events',
+  'house_rule_versions',
   'house_rules',
   'houses',
   'invitations',
@@ -188,6 +190,7 @@ describe('SETUP-006 / 007 / 008 — migrations', () => {
     const avant = await empreinteDuSchema(client)
 
     const migrations = [
+      '20260821200000_lot2_versions_regles',
       '20260821170000_audit_anonymisation',
       '20260821164314_lot1_identite',
       '20260821160500_garanties_base',

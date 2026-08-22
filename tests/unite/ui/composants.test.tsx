@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Avatar, initiales } from '@/components/ui/avatar'
 import { Bouton } from '@/components/ui/bouton'
@@ -134,10 +134,41 @@ describe('UI-009 — titre très long', () => {
   })
 })
 
-describe('UI-010 — image absente', () => {
+/**
+ * UI-010 couvre trois situations, pas une : pas de photo du tout, une photo
+ * dont le chargement échoue, et une photo déjà échouée avant que React n'ait
+ * posé son gestionnaire. La troisième est celle d'un rendu côté serveur — la
+ * seule des trois qui se produise réellement en production.
+ */
+describe('UI-010 — image absente ou cassée', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('affiche les initiales plutôt qu’une icône cassée', () => {
     render(<Avatar nom="Léa Fournier" />)
     expect(screen.getByText('LF')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('retombe sur les initiales quand la photo casse au chargement', () => {
+    render(<Avatar nom="Photo cassée" url="/image-inexistante.jpg" />)
+
+    fireEvent.error(screen.getByRole('img'))
+
+    expect(screen.getByText('PC')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('rattrape une photo déjà cassée avant le montage', () => {
+    // Une image rendue côté serveur peut échouer avant que React n'existe :
+    // l'événement `error` est perdu, seul l'état de l'image le dit encore.
+    vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0)
+
+    render(<Avatar nom="Photo cassée" url="/image-inexistante.jpg" />)
+
+    expect(screen.getByText('PC')).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
   })
 

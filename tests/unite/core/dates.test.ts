@@ -6,6 +6,7 @@ import {
   debutDeJour,
   formaterHeure,
   formaterInstant,
+  formaterJourCourt,
   formaterJourLong,
   formaterPeriode,
   instantDepuisHeureParis,
@@ -37,7 +38,15 @@ describe('CORE-010 — fuseau horaire', () => {
 
   it('ne décale pas un jour nu à l’affichage', () => {
     expect(formaterJourLong(jour('2026-10-25'))).toBe('dimanche 25 octobre 2026')
-    expect(formaterJourLong(jour('2026-01-01'))).toBe('jeudi 1 janvier 2026')
+    expect(formaterJourLong(jour('2026-01-01'))).toBe('jeudi 1er janvier 2026')
+  })
+
+  it('dit « 1er » du premier jour du mois, et de lui seul', () => {
+    expect(formaterJourLong(jour('2026-09-01'))).toBe('mardi 1er septembre 2026')
+    expect(formaterJourCourt(jour('2026-09-01'))).toBe('1er sept.')
+    // Un millésime ou un onze qui commence par 1 n'y a pas droit.
+    expect(formaterJourLong(jour('2026-09-11'))).toBe('vendredi 11 septembre 2026')
+    expect(formaterJourLong(jour('2026-09-21'))).toBe('lundi 21 septembre 2026')
   })
 
   it('construit un instant à partir d’une heure lue sur une horloge parisienne', () => {
@@ -149,6 +158,13 @@ describe('Utilitaires de jours', () => {
     )
     expect(formaterPeriode(jour('2026-10-30'), jour('2026-11-02'))).toBe(
       'du 30 octobre 2026 au 2 novembre 2026',
+    )
+    // Le cas qui se lisait mal sur l'agenda : « au 1 septembre ».
+    expect(formaterPeriode(jour('2026-08-29'), jour('2026-09-01'))).toBe(
+      'du 29 août 2026 au 1er septembre 2026',
+    )
+    expect(formaterPeriode(jour('2026-09-01'), jour('2026-09-04'))).toBe(
+      'du 1er au 4 septembre 2026',
     )
   })
 })

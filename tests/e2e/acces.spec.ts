@@ -18,6 +18,7 @@ const ECRANS_PRIVES = [
   '/profil',
   '/profil/email/jeton-quelconque',
   '/gerer',
+  '/gerer/maison',
 ] as const
 
 test.describe('AUTH-S01 / PERM-S01 — sans session', () => {
@@ -65,6 +66,19 @@ test.describe('Ami connecté', () => {
     // Le refus ne confirme pas l'existence de la console.
     expect(texte).not.toContain('Gérer')
     expect(texte).not.toContain('interdit')
+  })
+
+  test('HOUSE-S02 — « /gerer/maison » est introuvable pour un ami', async ({
+    page,
+  }) => {
+    const reponse = await page.goto('/gerer/maison')
+    expect(reponse?.status()).toBe(404)
+
+    const texte = await page.locator('body').innerText()
+    expect(texte).toContain('Rien par ici')
+    // Ni le nom de la maison, ni un champ de saisie ne doivent transparaître.
+    expect(texte).not.toContain('Nom affiché')
+    await expect(page.locator('input')).toHaveCount(0)
   })
 
   test('PERM-S05 — l’onglet « Gérer » n’est pas proposé', async ({ page }) => {

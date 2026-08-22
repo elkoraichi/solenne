@@ -104,9 +104,33 @@ describe('SETUP-009 — jeu de démonstration cohérent', () => {
     expect(maisons[0]?.name).toBeTruthy()
   })
 
+  it('dépose les photos réelles de la maison et en désigne une en accueil', async () => {
+    const maison = await client.house.findFirstOrThrow()
+    expect(maison.photos.length).toBeGreaterThanOrEqual(9)
+    expect(maison.coverImage).toBe(maison.photos[0])
+    for (const photo of maison.photos) {
+      // Le format servi par `/media/[nom]` — rien d'autre n'est lisible.
+      expect(photo).toMatch(/^\/media\/[\w-]+\.webp$/)
+    }
+  })
+
   it('crée les chambres et les bureaux du contenu provisoire', async () => {
     expect(await client.space.count({ where: { type: 'ROOM' } })).toBe(5)
     expect(await client.space.count({ where: { type: 'OFFICE' } })).toBe(2)
+  })
+
+  it('pose la photo de Solenne sur les six pièces qui en ont une', async () => {
+    const espaces = await client.space.findMany({ orderBy: { order: 'asc' } })
+    const illustres = espaces.filter((espace) => espace.photos.length > 0)
+
+    expect(illustres).toHaveLength(6)
+    for (const espace of illustres) {
+      expect(espace.photos[0]).toMatch(/^\/media\/[\w-]+\.webp$/)
+    }
+    // Le canapé-lit du salon n'a pas de photo : l'absence ne casse rien.
+    expect(
+      espaces.find((espace) => espace.photos.length === 0)?.name,
+    ).toBe('Canapé-lit du salon')
   })
 
   it('crée les règles de la maison, dont certaines à accepter', async () => {
