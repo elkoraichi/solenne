@@ -16,8 +16,8 @@ import {
   occupationMaximale,
   presencesConcernees,
   tientDansLaCapacite,
-  type JourOccupe,
-} from '@/domain/occupancy/registre'
+} from '@/domain/occupancy/occupation'
+import type { JourOccupe } from '@/domain/occupancy/registre'
 import type { PrismaClient } from '@/generated/prisma/client'
 import { executerAction } from '@/server/actions/executer'
 import { journaliserAudit } from '@/server/audit'

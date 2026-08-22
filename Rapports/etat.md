@@ -6,18 +6,42 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `761559d` — silence des refus attendus dans la sortie des tests |
+| **Dernier commit** | `OCCUP-A` — contrat figé du calcul d'occupation |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | aucun — le lot 3 n'est pas ouvert |
-| **Arrêt en cours** | — |
-| **Prochain arrêt** | **S1 · `OCCUP-A`** — exige **Opus** (`Rapports/Plan-Vague1.md`) |
-| **Prochaine action** | Lire la section `OCCUP` de `Mode Operatoire - Detail/Lot3-Sejours.md`, acter P6, écrire `OCCUP-CT-01→08` et `OCCUP-001→014` avant le code |
-| **Suite de tests** | verte — 599 Vitest (44 s) + 454 Playwright (1 min 15) |
+| **Module en cours** | `OCCUP` — Calcul de l'occupation ★ |
+| **Arrêt en cours** | **S1 · `OCCUP-A` terminé** — 22 cas prévus, 38 tests écrits |
+| **Prochain arrêt** | **S2 · `OCCUP-B`** — Sonnet suffit : le contrat est figé, il reste à l'exercer |
+| **Prochaine action** | `OCCUP-015`, `018→026` — détail par source, pic, volume, exclusion, **sentinelle `OCCUP-024`**, grille de sécurité, rapport de module |
+| **Suite de tests** | verte — 637 Vitest (45 s) + 448 Playwright, 6 ignorés (1 min 20) |
 | **En attente de Yassine** | rien |
 
-## À savoir avant d'ouvrir `OCCUP`
+## Ce qui a été arrêté à `OCCUP-A`
 
-- Le **registre de contributeurs** existe déjà : `src/domain/occupancy/registre.ts`, posé au module `HOUSE` (problème P5). `OCCUP` le **complète** — contrat `OCCUP-CT-01→08`, sentinelle `OCCUP-024`, 34 cas — il ne le crée pas.
-- L'effectif d'un séjour est **adultes + enfants**. Le §6.4 écrit « + invités » : les additionner compterait chaque enfant deux fois, `stay_guests` nommant les mêmes personnes (problème P6, à trancher formellement à l'ouverture du module).
-- `DORMEUR_ÉVÉNEMENT` reste **déclaré et dormant**. Le lot 4 l'allumera sans réécrire de formule.
-- Règle non négociable n°3 : **`AVAIL` ne compte jamais.** Un seul endroit additionne des personnes, et c'est `OCCUP`.
+- **P6 tranché.** L'effectif d'un séjour est **adultes + enfants**. `stay_guests`
+  *nomme* ces mêmes personnes, il n'en ajoute aucune. Le §6.4 du Mode Opératoire
+  a été corrigé en conséquence. **À reporter dans `STAYREQ`** : c'est à la saisie
+  d'interdire une liste de noms plus longue que `adultes + enfants`.
+- **Le contrat figé** vit dans `src/domain/occupancy/occupation.ts`. Trois
+  décisions y sont écrites en tête de fichier : le `total` d'une période est son
+  **pic** ; `parSource` est le détail **du jour de pic** ; une personne
+  identifiée n'est comptée **qu'une fois par jour**, et l'ordre de `REGISTRE`
+  décide à quelle source elle est attribuée. Le lot 4 ne doit toucher à aucune
+  ligne de ce fichier.
+- **`registre.ts` ne compte plus rien** : il ne fait que déclarer les sources.
+  Les cinq fonctions qui additionnaient (`occupationParJour`,
+  `occupationMaximale`, `joursAuDela`, `presencesConcernees`,
+  `tientDansLaCapacite`) sont passées dans `occupation.ts` et s'appuient
+  désormais sur la formule unique. Les trois sites d'import du lot 2 ont suivi.
+- **Statuts en liste blanche** (`STATUTS_COMPTES` = `CONFIRMED`, `COMPLETED`) :
+  un statut inconnu vaut zéro. Une maison déclarée trop vide se rattrape ; une
+  maison déclarée trop pleine un samedi soir, non.
+- `OCCUP-016` et `017` (bornes de la période) ont été **avancés dans A** : le
+  contrat devait définir son propre domaine de validité. Il en reste 11 pour B.
+
+## Deux points d'outillage
+
+- **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier` :
+  il réécrit tout en double quotes et points-virgules, contre le style du code.
+  Le style se vérifie avec `npx eslint .`.
+- La grille de sécurité S1→S12 n'a **pas** été passée : `OCCUP` n'expose aucune
+  surface (fiche §5). Elle est au programme d'`OCCUP-B`, avec la sentinelle.

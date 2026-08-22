@@ -395,12 +395,15 @@ Un peu plus de structure au lot 3 : environ 8 tests supplémentaires (`OCCUP-CT-
 
 ### 6.4 Formule de référence
 
-> **Occupation d'un jour J** = Σ (adultes + enfants + invités) des séjours confirmés couvrant J
+> **Occupation d'un jour J** = Σ (adultes + enfants) des séjours confirmés couvrant J
 > **+** Σ (participant + accompagnants adultes + enfants) des RSVP « je dors sur place » dont la nuit couvre J
 > **+** *(post-MVP)* Σ des affectations de chambre couvrant J
 >
 > Convention : intervalles semi-ouverts `[arrivée, départ[`. Le jour du départ n'est pas occupé.
 > Comparaison : `occupation(J) + demande ≤ capacité (D1, 1→25)`.
+
+**P6 — arrêté le 22/08/2026, à l'ouverture d'`OCCUP`.** La ligne ci-dessus disait « adultes + enfants **+ invités** ». C'était faux : `stay_guests` ne décrit pas des personnes supplémentaires, il *nomme* celles qui sont déjà déclarées — son champ `is_child` le montre assez. Les additionner aurait compté deux fois chaque personne nommée, et la maison aurait refusé des demandes qu'elle peut accueillir. L'effectif d'un séjour est **adultes + enfants**, un point c'est tout (`OCCUP-009`).
+Conséquence pour `STAYREQ` : c'est **à la saisie** de garantir que la liste des invités nommés ne dépasse pas `adultes + enfants`. Le calcul ne rattrape rien.
 
 ---
 

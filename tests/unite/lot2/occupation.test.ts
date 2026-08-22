@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { jour, versTexteJour } from '@/domain/core/dates'
 import {
-  contributeursActifs,
   joursAuDela,
   occupationMaximale,
   occupationParJour,
   presencesConcernees,
+} from '@/domain/occupancy/occupation'
+import {
+  contributeursActifs,
   REGISTRE,
   type Presence,
 } from '@/domain/occupancy/registre'

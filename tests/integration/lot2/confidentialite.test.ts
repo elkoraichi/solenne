@@ -4,7 +4,7 @@ vi.mock('next/headers', () => import('../../faux-next-headers'))
 
 import { ajouterJours, versTexteJour } from '@/domain/core/dates'
 import { CATALOGUE_MESSAGES } from '@/domain/core/messages'
-import { tientDansLaCapacite } from '@/domain/occupancy/registre'
+import { tientDansLaCapacite } from '@/domain/occupancy/occupation'
 import type { Resultat } from '@/domain/core/result'
 import type { PrismaClient } from '@/generated/prisma/client'
 import {
