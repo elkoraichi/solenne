@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { jour } from '@/domain/core/dates'
-import { occupationLeJour, occupationSur } from '@/domain/occupancy/occupation'
+import { jour, versTexteJour } from '@/domain/core/dates'
+import { occupationLeJour, occupationMaximale, occupationSur } from '@/domain/occupancy/occupation'
+import {
+  REGISTRE,
+  contributeursActifs,
+  type Presence,
+} from '@/domain/occupancy/registre'
 import {
   STATUTS_COMPTES,
   effectifDuSejour,
@@ -201,6 +206,32 @@ describe('OCCUP-014 — le séjour de Solenne compte comme un autre', () => {
   })
 })
 
+describe('OCCUP-015 — période interrogée large, sur plusieurs mois', () => {
+  it('rend le détail jour par jour correct du 1er septembre au 30 novembre', () => {
+    const sejours = [
+      sejour({ id: 'A', arrivee: jour('2026-09-05'), depart: jour('2026-09-08'), adultes: 2 }),
+      sejour({ id: 'B', arrivee: jour('2026-10-10'), depart: jour('2026-10-15'), adultes: 6 }),
+      sejour({ id: 'C', arrivee: jour('2026-11-20'), depart: jour('2026-11-22'), adultes: 3 }),
+    ]
+
+    const { jours, total } = occupationSur(presencesDesSejours(sejours), {
+      debut: jour('2026-09-01'),
+      fin: jour('2026-11-30'),
+    })
+
+    const parDate = new Map(jours.map((j) => [versTexteJour(j.jour), j.total]))
+
+    expect(parDate.get('2026-09-01')).toBe(0)
+    expect(parDate.get('2026-09-05')).toBe(2)
+    expect(parDate.get('2026-09-07')).toBe(2)
+    expect(parDate.get('2026-09-08')).toBe(0)
+    expect(parDate.get('2026-10-12')).toBe(6)
+    expect(parDate.get('2026-11-21')).toBe(3)
+    expect(parDate.get('2026-11-29')).toBe(0)
+    expect(total).toBe(6)
+  })
+})
+
 describe('Bornes de la période interrogée', () => {
   it('OCCUP-016 — refuse explicitement une période inversée', () => {
     expect(() =>
@@ -216,5 +247,157 @@ describe('Bornes de la période interrogée', () => {
 
     expect(resultat.total).toBe(0)
     expect(resultat.jours).toEqual([])
+  })
+})
+
+describe('OCCUP-018 — une personne identifiée n’est comptée qu’une fois par jour', () => {
+  /**
+   * Seul `SEJOUR_CONFIRME` est actif au lot 3 : `DORMEUR_EVENEMENT` n'existe pas
+   * encore (lot 4, `SLEEP`). Le cas se rejoue donc avec deux séjours confirmés
+   * qui réclament le même occupant le même jour — exactement le mécanisme que
+   * `SLEEP` réutilisera sans y toucher.
+   */
+  it('ne compte Marc qu’une fois le 11, bien que deux séjours le réclament', () => {
+    const sejours = [
+      sejour({ id: 'A', adultes: 4, occupantId: 'marc' }),
+      sejour({
+        id: 'B',
+        adultes: 1,
+        arrivee: jour('2026-09-11'),
+        depart: jour('2026-09-13'),
+        occupantId: 'marc',
+      }),
+    ]
+
+    expect(personnesLe('2026-09-11', sejours)).toBe(4)
+  })
+})
+
+describe('OCCUP-019 — un contributeur dormant ne change pas le total', () => {
+  it('ignore six dormeurs d’événement tant que le contributeur est inactif', () => {
+    const presences: Presence[] = [
+      ...presencesDesSejours([sejour()]),
+      {
+        contributeur: 'DORMEUR_EVENEMENT',
+        reference: 'rsvp-1',
+        arrivee: jour('2026-09-10'),
+        depart: jour('2026-09-12'),
+        personnes: 6,
+      },
+    ]
+
+    const { total } = occupationSur(presences, {
+      debut: jour('2026-09-10'),
+      fin: jour('2026-09-12'),
+    })
+
+    expect(total).toBe(4)
+  })
+})
+
+describe('OCCUP-020 — détail par source', () => {
+  it('attribue les 4 personnes à SEJOUR_CONFIRME, les autres sources à zéro', () => {
+    const { parSource } = occupationSur(presencesDesSejours([sejour()]), {
+      debut: jour('2026-09-10'),
+      fin: jour('2026-09-12'),
+    })
+
+    expect(parSource).toEqual({
+      SEJOUR_CONFIRME: 4,
+      DORMEUR_EVENEMENT: 0,
+      AFFECTATION_CHAMBRE: 0,
+    })
+  })
+})
+
+describe('OCCUP-021 — occupation maximale sur une période', () => {
+  it('désigne le jour et l’effectif du pic parmi des séjours qui varient du 10 au 20', () => {
+    const sejours = [
+      sejour({ id: 'A', adultes: 4, arrivee: jour('2026-09-10'), depart: jour('2026-09-15') }),
+      sejour({ id: 'B', adultes: 5, arrivee: jour('2026-09-14'), depart: jour('2026-09-18') }),
+      sejour({ id: 'C', adultes: 2, arrivee: jour('2026-09-18'), depart: jour('2026-09-20') }),
+    ]
+
+    const pic = occupationMaximale(presencesDesSejours(sejours))
+
+    expect(pic).not.toBeNull()
+    expect(pic?.personnes).toBe(9)
+    expect(versTexteJour(pic?.jour as Date)).toBe('2026-09-14')
+  })
+})
+
+describe('OCCUP-022 — grand volume', () => {
+  it('répond en moins de 100 ms avec 200 séjours répartis sur deux ans', () => {
+    const sejours = Array.from({ length: 200 }, (_, i) => {
+      const arrivee = new Date(Date.UTC(2025, 0, 1) + i * 3 * 86_400_000)
+      const depart = new Date(arrivee.getTime() + 2 * 86_400_000)
+      return sejour({ id: `sejour-${i}`, arrivee, depart, adultes: 1 + (i % 6) })
+    })
+
+    const debutChrono = performance.now()
+    occupationSur(presencesDesSejours(sejours), {
+      debut: jour('2026-06-01'),
+      fin: jour('2026-07-01'),
+    })
+    const duree = performance.now() - debutChrono
+
+    expect(duree).toBeLessThan(100)
+  })
+})
+
+describe('OCCUP-023 — exclusion du séjour en cours de modification', () => {
+  it('ignore le séjour dont on exclut la référence, sans toucher aux autres', () => {
+    const sejours = [sejour({ id: 'A', adultes: 4 }), sejour({ id: 'B', adultes: 3 })]
+
+    const { total } = occupationSur(
+      presencesDesSejours(sejours),
+      { debut: jour('2026-09-10'), fin: jour('2026-09-12') },
+      { exclureReference: 'A' },
+    )
+
+    expect(total).toBe(3)
+  })
+})
+
+describe('OCCUP-024 — sentinelle : aucune source oubliée', () => {
+  it('le total vaut la somme de tous les contributeurs actifs du registre, quel que soit leur nombre', () => {
+    const presences: Presence[] = REGISTRE.map((contributeur, index) => ({
+      contributeur: contributeur.nom,
+      reference: `sentinelle-${index}`,
+      arrivee: jour('2026-09-10'),
+      depart: jour('2026-09-12'),
+      personnes: 1,
+    }))
+
+    const { total, parSource } = occupationSur(presences, {
+      debut: jour('2026-09-10'),
+      fin: jour('2026-09-12'),
+    })
+
+    const actifs = contributeursActifs()
+    expect(total).toBe(actifs.length)
+    for (const nom of actifs) {
+      expect(parSource[nom]).toBe(1)
+    }
+  })
+})
+
+describe('OCCUP-025 — cohérence après annulation', () => {
+  it('retombe à zéro quand un séjour confirmé de 4 personnes est annulé', () => {
+    const avant = sejour({ adultes: 4, statut: 'CONFIRMED' })
+    const apres = sejour({ adultes: 4, statut: 'CANCELLED' })
+
+    expect(personnesLe('2026-09-10', [avant])).toBe(4)
+    expect(personnesLe('2026-09-10', [apres])).toBe(0)
+  })
+})
+
+describe('OCCUP-026 — cohérence après modification de l’effectif', () => {
+  it('reflète les 6 personnes d’un séjour passé de 4 à 6', () => {
+    const avant = sejour({ adultes: 4 })
+    const apres = sejour({ adultes: 6 })
+
+    expect(personnesLe('2026-09-10', [avant])).toBe(4)
+    expect(personnesLe('2026-09-10', [apres])).toBe(6)
   })
 })
