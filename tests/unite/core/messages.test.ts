@@ -26,7 +26,7 @@ describe('CORE-012 — catalogue de messages', () => {
         "La maison n'a plus assez de place sur ces dates. Essayez d'autres dates.",
       EXCLUSIVE_CONFLICT: 'La maison est déjà privatisée sur ces dates.',
       EXCLUSIVE_REQUEST_CONFLICT:
-        "Un séjour est déjà prévu : la privatisation n'est pas possible.",
+        "La maison est déjà occupée sur ces dates : la privatisation n'est pas possible.",
       EVENT_OVERLAP: 'Un autre événement est déjà prévu sur ce créneau.',
       MIN_LEAD_TIME: "Il faut demander au moins {n} h à l'avance.",
       MAX_ADVANCE: "Les demandes sont possibles jusqu'à {n} jours à l'avance.",

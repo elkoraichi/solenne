@@ -37,7 +37,17 @@ import { conflit, trierConflits, type Conflit, type ResultatDisponibilite } from
  * événement a lieu », donc rien ne bloque une demande de ce seul fait — R4
  * reste seul juge de la capacité, dormeurs d'événement compris dès que
  * `SLEEP` les activera dans `OCCUP`), R8 (délégation, ci-dessous) et R6
- * (dormant, ci-dessous). Leurs combinaisons arrivent à S5.
+ * (dormant, ci-dessous).
+ *
+ * **S5 — ce que les combinaisons ont appris.** Une seule chose a bougé, et
+ * c'est la rencontre de R3 et R7 qui l'a montrée : un événement, même sans un
+ * seul dormeur, empêche de privatiser la maison. Aucune règle prise seule ne
+ * pouvait le dire — R7 n'avait aucun code, R3 ne regardait que les séjours et
+ * l'occupation, et une maison vide un jour de fête passait donc pour libre. Le
+ * contexte porte désormais `evenements`, R3 les compte parmi les occupants, et
+ * le message du catalogue dit « occupée » là où il disait « un séjour ». Tout
+ * le reste tient sans une ligne de plus : les huit règles s'additionnent,
+ * `trierConflits` les ordonne, aucune n'en masque une autre.
  *
  * **R8 — délégation à `POLICY`, pas exécution.** `POLICY` n'existe pas encore
  * (module suivant) et ses réglages — délai minimum, horizon, durée maximum —
@@ -82,12 +92,30 @@ export interface DemandeDisponibilite {
   readonly referenceAExclure?: string
 }
 
+/**
+ * Un événement déjà à l'agenda — un instant de début, un instant de fin.
+ * Contrairement à un séjour, un événement se mesure à l'heure, pas au jour :
+ * « 14h→22h » n'est pas un jour entier.
+ */
+export interface EvenementExistant {
+  readonly reference: string
+  readonly debut: Date
+  readonly fin: Date
+}
+
 export interface ContexteDisponibilite {
   readonly capacite: number
   /** Transmises telles quelles à `OCCUP`. Ce module ne les ouvre pas. */
   readonly presences: readonly Presence[]
   readonly blocages?: readonly PeriodeBlocage[]
   readonly sejours?: readonly SejourExistant[]
+  /**
+   * Les événements à l'agenda sur la période. **Sans effectif** — leurs
+   * dormeurs sont des présences comme les autres, et c'est `OCCUP` qui les
+   * compte (G1). R7 n'en tire aucun refus ; seule R3 les regarde, parce qu'une
+   * maison où l'on reçoit n'est pas une maison vide.
+   */
+  readonly evenements?: readonly EvenementExistant[]
   /**
    * R8 — les refus déjà rendus par `POLICY` pour cette même demande.
    * `AVAIL` ne les calcule pas, il les rapporte (voir plus haut).
@@ -139,9 +167,22 @@ export function verifierDisponibilite(
   }
 
   // R3 — la privatisation demandée, à l'envers : la période doit être vide.
-  // Vide au sens de `OCCUP` (personne n'y dort) **et** au sens de l'agenda
-  // (aucun séjour posé) — un séjour à zéro personne reste un séjour.
-  if (demande.exclusif && (sejoursEnTravers.length > 0 || occupation.total > 0)) {
+  // Vide au sens de `OCCUP` (personne n'y dort), au sens des séjours (un séjour
+  // à zéro personne reste un séjour) **et** au sens des événements : un
+  // événement sans dormeur ne pèse sur aucun compte, mais on ne privatise pas
+  // une maison le jour où Solenne y reçoit (`AVAIL-031`).
+  //
+  // C'est la seule chose que R7 emprunte au moteur. Le reste du temps, un
+  // séjour pendant un événement est le cas nominal (D3) et personne ne
+  // l'interroge : R4 seule arbitre, via les dormeurs que `OCCUP` lui compte.
+  const evenementsEnTravers = (contexte.evenements ?? []).filter((evenement) =>
+    chevauchent(evenement.debut, evenement.fin, arrivee, depart),
+  )
+
+  if (
+    demande.exclusif &&
+    (sejoursEnTravers.length > 0 || occupation.total > 0 || evenementsEnTravers.length > 0)
+  ) {
     conflits.push(conflit('R3', 'EXCLUSIVE_REQUEST_CONFLICT'))
   }
 
@@ -167,17 +208,6 @@ export function verifierDisponibilite(
   conflits.push(...(contexte.conflitsPolitique ?? []))
 
   return { compatible: conflits.length === 0, conflits: trierConflits(conflits) }
-}
-
-/**
- * Un événement déjà à l'agenda — un instant de début, un instant de fin.
- * Contrairement à un séjour, un événement se mesure à l'heure, pas au jour :
- * « 14h→22h » n'est pas un jour entier.
- */
-export interface EvenementExistant {
-  readonly reference: string
-  readonly debut: Date
-  readonly fin: Date
 }
 
 export interface DemandeEvenement {
