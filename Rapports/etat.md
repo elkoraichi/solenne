@@ -10,9 +10,10 @@
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
 | **Module en cours** | aucun — le lot 3 n'est pas ouvert |
 | **Arrêt en cours** | — |
-| **Prochaine action** | Ouvrir `OCCUP` : lire `Mode Operatoire - Detail/Lot3-Sejours.md` à la section `OCCUP` seule, puis écrire les tests avant le code |
+| **Prochain arrêt** | **S1 · `OCCUP-A`** — exige **Opus** (`Rapports/Plan-Vague1.md`) |
+| **Prochaine action** | Lire la section `OCCUP` de `Mode Operatoire - Detail/Lot3-Sejours.md`, acter P6, écrire `OCCUP-CT-01→08` et `OCCUP-001→014` avant le code |
 | **Suite de tests** | verte — 599 Vitest (44 s) + 454 Playwright (1 min 15) |
-| **En attente de Yassine** | choix du modèle pour les sessions du lot 3 (Sonnet par défaut, Opus sur `OCCUP` et `AVAIL` ?) |
+| **En attente de Yassine** | rien |
 
 ## À savoir avant d'ouvrir `OCCUP`
 

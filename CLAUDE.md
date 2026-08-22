@@ -113,4 +113,10 @@ Carnet numérique d'une maison de campagne, pas un logiciel de gestion. Lin, oli
 | Grouper les commandes indépendantes en un seul appel | Chaque aller-retour d'outil se repaie à tous les tours suivants |
 | Fin d'arrêt : `Rapports/etat.md` en dix lignes, puis stop | Sans elle, la session suivante dépense vingt appels d'outils à retrouver où nous en sommes |
 
-Le modèle se choisit par session (`/model`) : **Sonnet par défaut**, Opus réservé à `OCCUP` et `AVAIL` (§2.2, mesure M1).
+## Ouverture de session — trois lectures, dans cet ordre
+
+1. `Rapports/etat.md` — où nous en sommes : module, arrêt, prochaine action.
+2. `Rapports/Plan-Vague1.md` — la ligne de l'arrêt en cours : contenu, cas, modèle exigé.
+3. La **section du module** dans sa fiche de lot, par plage de lignes.
+
+`.claude/settings.json` démarre toute session sur **Sonnet**. Quatre arrêts de la vague 1 exigent **Opus** — `OCCUP-A`, `AVAIL-A`, `AVAIL-C`, `STAYDEC-A` : y figer un contrat, ordonner des règles qui se combinent, tenir une transaction concurrente. **Si le modèle actif n'est pas celui que l'arrêt exige, je le dis avant toute autre chose** et j'attends `/model`. Je ne commence pas un arrêt Opus sur Sonnet en espérant que ça passe.
