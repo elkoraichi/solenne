@@ -34,3 +34,6 @@ src/generated/
 
 # Réglages locaux de l'agent
 .claude/settings.local.json
+
+# Local Netlify folder
+.netlify

@@ -6,6 +6,7 @@ const configuration = [
   {
     ignores: [
       '.next/**',
+      '.netlify/**',
       'node_modules/**',
       'src/generated/**',
       'playwright-report/**',

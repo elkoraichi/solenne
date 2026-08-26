@@ -1,4 +1,4 @@
-import { EnvInvalideError, parseEnv } from './schema'
+import { EnvInvalideError, parseEnv, resoudreSourceEnv } from './schema'
 
 /**
  * Vérification exécutée au chargement de `next.config.ts`, donc avant que le
@@ -9,7 +9,7 @@ import { EnvInvalideError, parseEnv } from './schema'
  */
 export function verifierEnvironnementAuDemarrage(): void {
   try {
-    parseEnv(process.env)
+    parseEnv(resoudreSourceEnv(process.env))
   } catch (erreur) {
     if (erreur instanceof EnvInvalideError) {
       // Message lisible, sans pile d'appels : la personne qui déploie doit

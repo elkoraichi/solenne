@@ -63,6 +63,23 @@ export const envSchema = z
 
 export type Env = z.infer<typeof envSchema>
 
+/**
+ * La base Netlify DB (Neon en coulisses) injecte sa chaîne de connexion sous
+ * `NETLIFY_DB_URL` (documentation Netlify, août 2026), jamais sous
+ * `DATABASE_URL` — c'est elle qui gère le nom, pas nous. `NETLIFY_DATABASE_URL`
+ * est tolérée en plus par prudence, au cas où la variable serait renommée.
+ * Repli transparent : `DATABASE_URL` reste la seule variable que Prisma et le
+ * reste du code connaissent.
+ */
+export function resoudreSourceEnv(
+  source: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  if (source.DATABASE_URL) return source
+  const repli = source.NETLIFY_DB_URL ?? source.NETLIFY_DATABASE_URL
+  if (!repli) return source
+  return { ...source, DATABASE_URL: repli }
+}
+
 /** Nom des variables sans lesquelles l'application ne démarre pas. */
 export const VARIABLES_OBLIGATOIRES = [
   'DATABASE_URL',

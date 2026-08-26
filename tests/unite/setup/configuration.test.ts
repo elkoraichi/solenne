@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { EnvInvalideError, parseEnv } from '@/env/schema'
+import { EnvInvalideError, parseEnv, resoudreSourceEnv } from '@/env/schema'
 
 const racine = process.cwd()
 const lire = (chemin: string) => readFileSync(join(racine, chemin), 'utf8')
@@ -121,6 +121,28 @@ describe('SETUP-004 — variable d’environnement manquante', () => {
   it('déclenche la vérification au chargement de la configuration Next', () => {
     const config = lire('next.config.ts')
     expect(config).toContain('verifierEnvironnementAuDemarrage()')
+  })
+})
+
+describe('DEPLOY-007 — repli Netlify DB pour DATABASE_URL', () => {
+  it('laisse DATABASE_URL intact quand elle est déjà renseignée', () => {
+    const source = { DATABASE_URL: 'postgresql://a', NETLIFY_DB_URL: 'postgresql://b' }
+    expect(resoudreSourceEnv(source)).toEqual(source)
+  })
+
+  it('reprend NETLIFY_DB_URL quand DATABASE_URL est absente', () => {
+    const source = { NETLIFY_DB_URL: 'postgresql://netlify-db' }
+    expect(resoudreSourceEnv(source).DATABASE_URL).toBe('postgresql://netlify-db')
+  })
+
+  it('tolère NETLIFY_DATABASE_URL par prudence, si jamais la variable change de nom', () => {
+    const source = { NETLIFY_DATABASE_URL: 'postgresql://autre-nom' }
+    expect(resoudreSourceEnv(source).DATABASE_URL).toBe('postgresql://autre-nom')
+  })
+
+  it('ne modifie rien si aucune des deux variables Netlify n’existe', () => {
+    const source = { AUTH_SECRET: 'x' }
+    expect(resoudreSourceEnv(source)).toEqual(source)
   })
 })
 

@@ -1,0 +1,5 @@
+[build]
+  # Les migrations s'appliquent avant chaque build de production : Netlify
+  # DB (Neon en coulisses) injecte NETLIFY_DATABASE_URL, jamais DATABASE_URL
+  # — prisma.config.ts et src/env/schema.ts font le même repli.
+  command = "npx prisma migrate deploy && npm run build"

@@ -12,6 +12,11 @@ export default defineConfig({
     seed: 'tsx prisma/seed.ts',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    // Netlify DB (Neon en coulisses) injecte sa chaîne sous NETLIFY_DB_URL,
+    // jamais DATABASE_URL — même repli que src/env/schema.ts::resoudreSourceEnv.
+    url:
+      env('DATABASE_URL') ??
+      process.env.NETLIFY_DB_URL ??
+      process.env.NETLIFY_DATABASE_URL,
   },
 })
