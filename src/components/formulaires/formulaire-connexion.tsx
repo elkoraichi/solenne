@@ -72,9 +72,17 @@ export function FormulaireConnexion() {
 
   return (
     <section className="flex flex-col gap-6">
+      {!oubli && (
+        // eslint-disable-next-line @next/next/no-img-element -- image statique hors pipeline photo (module SPACE), simple habillage de l'écran public
+        <img
+          src="/accueil-connexion.jpg"
+          alt=""
+          className="h-40 w-full rounded-2xl object-cover shadow-md"
+        />
+      )}
       <header className="flex flex-col gap-2">
         <h1 className="font-titre text-3xl leading-tight">
-          {oubli ? 'Mot de passe oublié' : 'Bienvenue chez Solenne'}
+          {oubli ? 'Mot de passe oublié' : 'Bienvenue chez Baby House'}
         </h1>
         <p className="text-encre-doux">
           {oubli

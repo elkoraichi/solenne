@@ -172,7 +172,7 @@ async function main() {
 
   const maison = await prisma.house.create({
     data: {
-      name: 'La maison de Solenne',
+      name: 'Baby House',
       description:
         'Une maison de campagne en pierre, un grand jardin, une longue table sous le tilleul. On y vient pour se poser.',
       address: 'Provisoire — à renseigner',
