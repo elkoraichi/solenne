@@ -59,7 +59,10 @@ test.describe('L’agenda du cercle', () => {
   test('CAL-007 — un séjour se retrouve dans le mois où il tombe', async ({
     page,
   }) => {
-    await page.goto(`/agenda?vue=mois&mois=${moisDansNJours(21)}`)
+    // Le séjour de Solenne tombe à +40 jours (`dans(40)` du jeu de démonstration) :
+    // viser ce mois-là, pas +21, qui n'y tombe que certains jours du mois par
+    // coïncidence de calendrier.
+    await page.goto(`/agenda?vue=mois&mois=${moisDansNJours(40)}`)
 
     // Le séjour de Solenne est en « prénom et nombre » : c'est le seul nom
     // qu'un ami a le droit de lire sur la grille.

@@ -340,3 +340,33 @@ Aucune. Le module n'a rien tranché qui ne relève de la technique.
 **Lot 3 — les six modules de la vague 1 (`OCCUP`, `AVAIL`, `POLICY`, `STAYREQ`, `STAYDEC`, `STAY`) sont clos. Reste la clôture du lot (trois tailles, régression complète, jugement visuel L2) avant `DEPLOY`.**
 
 ---
+
+## CLÔTURE DU LOT 3
+
+**Statut : ✅ VALIDÉ** le 27/08/2026.
+
+### Régression complète
+
+852 Vitest (~54 s) · `tsc --noEmit` et `eslint .` muets · Playwright aux trois tailles imposées par le lot (320 / 768 / 1440 px), build de production : **459 passés, 10 ignorés (mesures propres à une seule taille), 0 échoué** (~1 min 20 avec le build).
+
+### Problème rencontré et corrigé
+
+**`CAL-007` (module `CAL`, lot 2) — défaut dormant depuis le lot 2, pas une régression du lot 3.** Le test vise le mois à *aujourd'hui + 21 jours* et y cherche le nom « Solenne », visible sur son propre séjour (D9). Le jeu de démonstration place ce séjour à **+40 jours**, pas +21 — le test ne fonctionnait que les jours du mois où +21 et +40 tombent par coïncidence dans le même mois calendaire, ce qui n'est plus le cas depuis le 26/08/2026. Corrigé en visant +40 jours, l'écart réel du séjour de Solenne, au lieu de la constante réutilisée pour un autre séjour du jeu de démonstration (`tests/e2e/agenda.spec.ts`). Aucun défaut d'application — l'agenda affichait déjà correctement chaque séjour dans son propre mois.
+
+### Comportement mobile (critère 7 du §11.1)
+
+Vérifié aux trois tailles sur l'ensemble des écrans du lot (`/sejours`, `/gerer`) par `tests/e2e/rendu-responsive.spec.ts` : aucun débordement horizontal, cibles tactiles ≥ 44 × 44 px, largeur de lecture bornée, aucune trace technique à l'écran.
+
+### Jugement visuel — limite L2
+
+Captures produites, non chargées en contexte (mesure M3), dans `Rapports/apercus-lot3/` : `/sejours` côté ami, `/sejours` côté Solenne, `/gerer`, aux trois tailles. **Décision fonctionnelle à confirmer par Yassine** : ouvrir ces dix captures et juger rendu, ton et lisibilité — c'est la seule chose qui reste avant de considérer le lot 3 entièrement livré.
+
+### Impact sur les autres modules
+
+Aucun — la seule correction porte sur un test du lot 2, sans toucher au code applicatif.
+
+### Suite
+
+`DEPLOY`, dernier module de la vague 1 : mise en ligne sur Netlify/Neon, variables d'environnement (`babyplace.fr`, D6), tâche planifiée pour `cloturerSejoursTerminees` (`STAY`), checklist §11.3.
+
+---

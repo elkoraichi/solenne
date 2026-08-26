@@ -123,3 +123,29 @@ test.describe('@apercu console', () => {
     })
   }
 })
+
+/**
+ * Écrans du lot 3, pour la même validation visuelle (limite L2) : `/sejours`
+ * côté ami puis côté Solenne, `/gerer` avec sa nouvelle section « Demandes de
+ * séjour » au-dessus de la console existante.
+ */
+const ECRANS_LOT3 = [
+  { chemin: '/sejours', compte: 'marc', nom: 'sejours-ami' },
+  { chemin: '/sejours', compte: 'solenne', nom: 'sejours-solenne' },
+  { chemin: '/gerer', compte: 'solenne', nom: 'gerer' },
+] as const
+
+for (const ecran of ECRANS_LOT3) {
+  test.describe(`@apercu ${ecran.nom}`, () => {
+    test.use({ storageState: fichierSession(ecran.compte) })
+
+    test(`aperçu ${ecran.nom}`, async ({ page }, infos) => {
+      await page.goto(ecran.chemin)
+      await page.waitForLoadState('networkidle')
+      await page.screenshot({
+        path: `Rapports/apercus-lot3/${ecran.nom}-${infos.project.name}.png`,
+        fullPage: true,
+      })
+    })
+  })
+}

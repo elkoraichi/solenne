@@ -6,14 +6,14 @@
 
 | | |
 |---|---|
-| **Dernier commit** | à faire dans cette session — `STAY` clos (10/10), lot 3 à sa clôture près. Journal §14 entrée 1.18 et tableau de bord §2 à jour |
-| **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | aucun — les six modules du lot sont clos |
-| **Arrêt en cours** | aucun — `STAY` est **clos** (10 cas de la fiche, sécurité `S02`/`S04`, concurrence, écran `/gerer` + `/sejours`, E2E 320 px, journal, tableau de bord) |
-| **Prochain arrêt** | **Clôture du lot 3** — Sonnet, session neuve. Trois tailles (320/768/1440) sur l'ensemble du lot, régression complète, rapport de clôture, jugement visuel **L2** à demander à Yassine |
-| **Prochaine action** | Rejouer Playwright aux trois tailles sur les écrans du lot 3 (`/sejours`, `/gerer` et ce qui en dépend), consigner les captures, puis rédiger le rapport de clôture et solliciter Yassine pour L2. Ensuite : module `DEPLOY`, dernier de la vague 1 |
-| **Suite de tests** | **852 Vitest verts en ~50 s**, unité + intégration. `npx tsc --noEmit` et `npx eslint .` muets. E2E `/gerer` + `/sejours` rejoué en 320 px : 5 vérifications au vert (2 tailles restantes réservées à la clôture du lot, mesure M2) |
-| **En attente de Yassine** | Jugement visuel **L2** à la clôture du lot 3 (prochain arrêt) |
+| **Dernier commit** | à faire dans cette session — **lot 3 clos**. Journal §14 entrée 1.19, tableau de bord §2 (ligne lot 3 ✅ Validé 27/08/2026) et `Rapports/Lot3-Sejours.md` (section « Clôture du lot 3 ») à jour |
+| **Lot en cours** | aucun — lot 3 **validé**. Prochain lot : 7 — `DEPLOY` seul (vague 1) |
+| **Module en cours** | aucun |
+| **Arrêt en cours** | aucun — clôture du lot 3 **faite** : régression complète, trois tailles, un défaut de test corrigé (`CAL-007`, dormant depuis le lot 2), captures produites |
+| **Prochain arrêt** | Module **`DEPLOY`** — Sonnet, session neuve. Lire la fiche `Mode Operatoire - Detail/Lot7-*.md` (section `DEPLOY` seulement), préparer Netlify/Neon/Resend et les variables d'environnement (`babyplace.fr`, D6) |
+| **Prochaine action** | Ouvrir la fiche `DEPLOY`, poser la checklist §11.3, puis solliciter Yassine pour **L1** (achat du domaine, création des comptes) avant toute mise en ligne |
+| **Suite de tests** | **852 Vitest verts en ~54 s**, unité + intégration. `npx tsc --noEmit` et `npx eslint .` muets. Playwright complet aux trois tailles : **459 passés, 10 ignorés, 0 échoué** (~1 min 20, build de production compris) |
+| **En attente de Yassine** | Jugement visuel **L2** sur les dix captures de `Rapports/apercus-lot3/` (`/sejours` ami, `/sejours` Solenne, `/gerer`, trois tailles chacune) |
 
 ## `STAY` — les 10 cas, écrits et verts (session du 26/08/2026, Sonnet)
 
