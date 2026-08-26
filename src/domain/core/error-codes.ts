@@ -83,6 +83,9 @@ export const CODES_STAYDEC = [
   'DECISION_CONFLICT_UNCONFIRMED',
 ] as const
 
+/** Refus propres à la vie du séjour confirmé — lot 3 (`STAY`). */
+export const CODES_STAY = ['STAY_NOT_CANCELLABLE'] as const
+
 export const CODES = [
   ...CODES_METIER,
   ...CODES_TRANSVERSES,
@@ -91,6 +94,7 @@ export const CODES = [
   ...CODES_POLICY,
   ...CODES_STAYREQ,
   ...CODES_STAYDEC,
+  ...CODES_STAY,
 ] as const
 
 export type CodeMetier = (typeof CODES_METIER)[number]
@@ -100,6 +104,7 @@ export type CodeMaison = (typeof CODES_MAISON)[number]
 export type CodePolicy = (typeof CODES_POLICY)[number]
 export type CodeStayReq = (typeof CODES_STAYREQ)[number]
 export type CodeStayDec = (typeof CODES_STAYDEC)[number]
+export type CodeStay = (typeof CODES_STAY)[number]
 export type CodeErreur = (typeof CODES)[number]
 
 const TOUS = new Set<string>(CODES)

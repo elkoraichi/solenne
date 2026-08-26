@@ -6,74 +6,63 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `ab27862` (non commité depuis) — `STAYDEC` ★ clos (19/19), lot 3 à un module de sa fin. Journal §14 entrée 1.17 et tableau de bord §2 à jour. Reste à committer les changements de `STAYDEC-B` |
+| **Dernier commit** | à faire dans cette session — `STAY` clos (10/10), lot 3 à sa clôture près. Journal §14 entrée 1.18 et tableau de bord §2 à jour |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | `STAY` — dernier module du lot |
-| **Arrêt en cours** | aucun — `STAYDEC-B` est **clos** (11 cas de la fiche, écran `/gerer`, sécurité S02/S06, régression, Playwright 320/768/1440, journal, tableau de bord) |
-| **Prochain arrêt** | `STAY` — **Sonnet**, session neuve. Les 10 cas de la fiche (`001→010`) : séjours de Solenne créés sans demande, annulation des deux côtés, libération de la capacité, passage en `COMPLETED`, rapport de module, **clôture du lot 3** |
-| **Prochaine action** | Lire la section `STAY` de la fiche du lot 3 (`sed -n '427,488p'`), puis écrire les 10 cas. `STAYDEC-A` a déjà posé `verifierDecidable` et le contexte de disponibilité ; `STAY` n'a pas de transaction concurrente à inventer — l'annulation libère la capacité en la retirant simplement du registre `OCCUP`, déjà démontré par `STAYDEC-C05` |
-| **Suite de tests** | **832 Vitest verts en ~49 s**, unité + intégration, régression complète rejouée. `npx tsc --noEmit` et `npx eslint .` muets. Playwright rejoué sur l'écran `/gerer` aux trois tailles (320/768/1440) : 29 vérifications au vert |
-| **En attente de Yassine** | rien |
+| **Module en cours** | aucun — les six modules du lot sont clos |
+| **Arrêt en cours** | aucun — `STAY` est **clos** (10 cas de la fiche, sécurité `S02`/`S04`, concurrence, écran `/gerer` + `/sejours`, E2E 320 px, journal, tableau de bord) |
+| **Prochain arrêt** | **Clôture du lot 3** — Sonnet, session neuve. Trois tailles (320/768/1440) sur l'ensemble du lot, régression complète, rapport de clôture, jugement visuel **L2** à demander à Yassine |
+| **Prochaine action** | Rejouer Playwright aux trois tailles sur les écrans du lot 3 (`/sejours`, `/gerer` et ce qui en dépend), consigner les captures, puis rédiger le rapport de clôture et solliciter Yassine pour L2. Ensuite : module `DEPLOY`, dernier de la vague 1 |
+| **Suite de tests** | **852 Vitest verts en ~50 s**, unité + intégration. `npx tsc --noEmit` et `npx eslint .` muets. E2E `/gerer` + `/sejours` rejoué en 320 px : 5 vérifications au vert (2 tailles restantes réservées à la clôture du lot, mesure M2) |
+| **En attente de Yassine** | Jugement visuel **L2** à la clôture du lot 3 (prochain arrêt) |
 
-## `STAYDEC-B` — les onze cas restants, écrits et verts (3ᵉ session du 22/08/2026, Sonnet)
+## `STAY` — les 10 cas, écrits et verts (session du 26/08/2026, Sonnet)
 
-Fichier étendu : `src/server/actions/decisions-sejour.ts` (quatre fonctions
-ajoutées), `tests/integration/lot3/decisions-sejour.test.ts` (11 nouveaux cas),
-`src/components/formulaires/file-attente-decisions.tsx` (nouveau), `src/app/(admin)/gerer/page.tsx`
-(section ajoutée).
+Fichiers nouveaux : `src/domain/stays/sejour.ts` (`verifierAnnulable`,
+`sejourEstPasse`), `src/server/actions/sejours.ts` (cinq actions :
+`creerSejourPersonnel`, `mesSejours`, `sejoursDeLaMaison`, `annulerSejour`,
+`annulerSejourParSolenne`, `suggestionsLiberation`), `src/server/taches/cloture-sejours.ts`,
+`src/server/transaction-serialisable.ts` (`avecRejeuSerialisable`, extrait de
+`decisions-sejour.ts`), `src/components/formulaires/gestion-sejours.tsx`,
+`src/components/formulaires/mes-sejours.tsx`. Migration `lot3_stay_annulation`
+(`cancel_reason` sur `stays`). Code d'erreur `STAY_NOT_CANCELLABLE`.
 
-1. **`verifierDecisionSejour`** — lecture seule, le verdict complet promis à
-   l'entrée 1.16 : `confirmationSuffirait`, conflits chiffrés pour Solenne
-   (`resumePourSolenne`), occupation avant/avec la demande. Rejoue
-   `evaluerAcceptation` sur `db`, jamais sur un client de transaction — SDEC-R2
-   reste entier, l'écriture ne réutilise jamais ce verdict.
-2. **`rejeterDemandeSejour`** et **`contreProposerDemandeSejour`** — transaction
-   ordinaire, pas `Serializable` : le §9 de la fiche ne classe `CRITICAL` que la
-   course à l'acceptation. `verifierDecidable` (déjà écrite à l'arrêt A)
-   revérifiée avant chacune. La contre-proposition change les dates, laisse
-   `status: 'PENDING'`, ne touche ni `decidedById` ni `decidedAt` ni
-   `decisionNote` (SDEC-R8 — ce n'est pas une décision).
-3. **`demandesEnAttente`** — la file, triée arrivée croissante puis dépôt
-   croissant à égalité : la fiche demandait « les plus anciennes et les plus
-   urgentes en tête », deux critères tenus par un seul tri.
-4. **Écran `/gerer`** — section « Demandes de séjour » au-dessus de la console
-   existante (`FileAttenteDecisions`). Verdict chargé à l'ouverture de chaque
-   demande ; trois choix : accepter (confirmation exigée si
-   `confirmationSuffirait`), refuser (motif obligatoire), proposer d'autres
-   dates. Aucun problème d'écran cette fois : contexte de disponibilité et
-   `CaseACocher` déjà posés depuis `STAYREQ`.
-5. **Sécurité `S02`/`S06`** — un ami reçoit `FORBIDDEN` sur les cinq actions de
-   décision, avec une entrée d'audit `refus.demandeSejour.*` par action ;
-   l'appel direct de l'acceptation avec `confirme: true` forcé dans la charge
-   ne contourne rien, la garde tranche avant que la confirmation ne compte.
+1. **Création directe (`STAY-002`)** dispute la même capacité que l'acceptation
+   d'une demande (`STAYDEC-A`) : `avecRejeuSerialisable` — désormais partagé,
+   plus dupliqué — rejoue `evaluerDemande` dans une transaction `Serializable`.
+   Un test de concurrence dédié (création directe contre acceptation, même
+   capacité) le démontre.
+2. **Annulation des deux côtés** (`STAY-003` ami, `STAY-005`/`006` Solenne
+   avec motif obligatoire) : transaction ordinaire, aucune course possible —
+   annuler ne fait que retirer une occupation.
+3. **Clôture automatique (`STAY-008`)** : `cloturerSejoursTerminees`,
+   délibérément pas une Server Action — `DEPLOY` la branchera sur une tâche
+   planifiée derrière un secret partagé, pas une session.
+4. **Historique conservé (`STAY-009`)** et **suggestion après libération
+   (`STAY-010`)** : `mesSejours()` rend tous les statuts ; `suggestionsLiberation()`
+   rejoue `evaluerDemande` sur les demandes refusées à venir.
+5. **Sécurité `S02`/`S04`** : un ami reçoit `FORBIDDEN` sur les deux actions
+   réservées à Solenne, et `NOT_FOUND` (refus neutre) en tentant d'annuler le
+   séjour d'un autre.
 
-Aucun nouveau code d'erreur (le motif obligatoire se tient en Zod, pas en
-domaine), aucune migration.
+**Piège E2E** : le jeu de démonstration porte déjà un séjour personnel
+confirmé de Solenne — un locator texte (« Solenne · ») ne distingue pas ce
+séjour de celui que le test vient de créer, et un `.last()` sur les boutons
+peut tomber sur la mauvaise ligne si le rafraîchissement n'est pas encore
+retombé. Corrigé en comptant les lignes (`toHaveCount`) plutôt qu'en lisant un
+texte de date formaté. Aucun défaut d'application trouvé — l'annulation
+ciblait déjà correctement ce qu'on lui donnait.
 
-## `STAYDEC-A`, pour mémoire
+Détail complet dans `Rapports/Lot3-Sejours.md` (section `STAY`).
 
-Les 8 premiers cas (`001`, `005`, `006`, `011`, `014`, `C01`, `C05`, `C06`) et
-la transaction sérialisable : détail dans `Mode Operatoire.md` §14, entrée
-1.16, et `Rapports/Lot3-Sejours.md` section `STAYDEC`.
+## `STAYDEC` ★, `STAYREQ`, `POLICY`, `AVAIL` ★, `OCCUP`, pour mémoire
 
-## Ce qui a été figé à `STAYREQ` (arrêt B)
-
-- **`verifierDisponibiliteSejour`** (Server Action, lecture seule) : le modèle
-  qu'a repris `verifierDecisionSejour` ci-dessus.
-- **`POLICY-012` fermé** — `POLICY` à 16/16.
-- **Composant `CaseACocher`** (`src/components/ui/case-a-cocher.tsx`) —
-  réutilisé cette session pour « J'accepte malgré ce conflit ».
-- **Piège E2E** : `.check()` seul échoue sur une case `sr-only` — `check({ force: true })`.
-- Rapport complet dans `Rapports/Lot3-Sejours.md` (section `STAYREQ`).
-
-## `AVAIL` ★ et `OCCUP`, pour mémoire
-
-Clos respectivement à `AVAIL-C` (35/35) et `OCCUP-B` (34/34) : détail dans
-`Mode Operatoire.md` §14 (entrées 1.12, 1.13) et l'historique git.
+Tous clos : détail dans `Mode Operatoire.md` §14 (entrées 1.12→1.17) et
+`Rapports/Lot3-Sejours.md`.
 
 ## Deux points d'outillage
 
 - **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier`.
   Le style se vérifie avec `npx eslint .`.
-- **`STAY` est un module Sonnet ordinaire** : plus d'arrêt Opus prévu dans la
-  vague 1 après `STAYDEC-A`.
+- **La base de dev (`solenne_dev`) est reseedée à chaque `npx playwright test`.**
+  Les IDs changent d'une exécution à l'autre — ne jamais s'y fier d'une session
+  à l'autre, seuls les statuts et les dates comptent.

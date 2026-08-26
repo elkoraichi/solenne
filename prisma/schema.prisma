@@ -530,6 +530,7 @@ model Stay {
   isOwnerStay  Boolean     @default(false) @map("is_owner_stay")
   privacyLevel StayPrivacy @default(BUSY_ONLY) @map("privacy_level")
   status       StayStatus  @default(CONFIRMED)
+  cancelReason String?     @map("cancel_reason")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 

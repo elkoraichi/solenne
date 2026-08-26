@@ -193,6 +193,7 @@ describe('SETUP-006 / 007 / 008 — migrations', () => {
     const avant = await empreinteDuSchema(client)
 
     const migrations = [
+      '20260826211629_lot3_stay_annulation',
       '20260822120000_lot3_staydec_exclusivite_stricte',
       '20260822090000_lot3_stayreq_demande_unique_en_attente',
       '20260822081034_lot3_policy_reglages_optionnels',

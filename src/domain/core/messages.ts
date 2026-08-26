@@ -113,6 +113,10 @@ export const CATALOGUE_MESSAGES: Readonly<Record<CodeErreur, string>> = {
   // Le code du refus reste celui du conflit — Solenne a besoin de savoir
   // pourquoi, pas seulement qu'il faut confirmer.
   DECISION_CONFLICT_UNCONFIRMED: 'Confirmez explicitement pour accepter quand même.',
+
+  // --- Séjour confirmé (lot 3, `STAY`) ---
+  STAY_NOT_CANCELLABLE:
+    'Ce séjour est déjà terminé ou annulé. Il n’est plus annulable.',
 }
 
 /**

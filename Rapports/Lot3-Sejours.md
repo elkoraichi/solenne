@@ -284,3 +284,59 @@ concurrentes sur la même ligne.
 Aucune. Le module n'a rien tranché qui ne relève de la technique.
 
 ---
+
+## MODULE : STAY — Séjours confirmés
+
+**Statut : ✅ VALIDÉ — 10 cas sur 10** (`001→010`), plus deux cas de sécurité (`S02`, `S04`) et un cas de concurrence hors fiche · livré en un seul arrêt (Sonnet). Dernier module du lot 3.
+
+### Fonctionnalités réalisées
+
+- `verifierAnnulable` / `sejourEstPasse` (`src/domain/stays/sejour.ts`) : « passé » se lit sur la **date de départ**, jamais sur le seul `status` — convention `[arrivée, départ[` (règle non négociable n°7).
+- `creerSejourPersonnel` (`src/server/actions/sejours.ts`) : un séjour de Solenne, sans demande (`requestId = null`, `isOwnerStay = true`). Il dispute la **même** capacité que l'acceptation d'une demande (`STAYDEC-A`) : rejoue `evaluerDemande` dans une transaction `Serializable`, avec le même rejeu de course que l'acceptation.
+- `annulerSejour` (l'ami annule le sien) et `annulerSejourParSolenne` (motif obligatoire, notifie l'ami) : aucune des deux ne dispute une ressource — annuler ne fait que retirer une occupation, une transaction ordinaire suffit.
+- `cloturerSejoursTerminees` (`src/server/taches/cloture-sejours.ts`) : le passage automatique en `COMPLETED`. Ce n'est délibérément **pas** une Server Action — rien n'a de session un jour donné à minuit ; `DEPLOY` la branchera sur une tâche planifiée derrière un secret partagé. Idempotente : ne touche que les séjours encore `CONFIRMED` dont le départ est atteint.
+- `suggestionsLiberation` (STAY-010) : parmi les demandes refusées à venir, celles que la maison pourrait accueillir maintenant qu'une occupation concurrente s'est annulée.
+- `avecRejeuSerialisable` extrait de `decisions-sejour.ts` vers `src/server/transaction-serialisable.ts` : `STAY` et `STAYDEC` en avaient tous deux besoin, il n'y a plus qu'une seule définition du rejeu de course.
+- Écran `/gerer` (`GestionSejours`) : créer un séjour personnel, voir « Séjours à venir » (`CONFIRMED`/`COMPLETED` seulement — un séjour annulé en sort), annuler avec motif obligatoire. Écran `/sejours` (`MesSejours`, côté ami) : ses séjours tous statuts confondus, l'historique inclus (STAY-009).
+
+### Règles vérifiées
+
+| Règle | Où elle est tenue |
+|---|---|
+| STAY-R1 | `creerSejourPersonnel` : `requestId = null`, `isOwnerStay = true` (`STAY-002`) |
+| STAY-R2 | `annulerSejour`/`annulerSejourParSolenne` passent `status: 'CANCELLED'` dans la même transaction que la notification et l'audit — la capacité se relit à zéro dès l'écriture validée (`STAY-004`) |
+| STAY-R3 | `schemaAnnulationParSolenne` : motif non vide, propagé à `cancelReason` et au corps de la notification (`STAY-005`, `006`) |
+| STAY-R4 | Aucune suppression : `mesSejours()` rend tous les statuts (`STAY-009`) |
+| STAY-R5 | `cloturerSejoursTerminees`, `updateMany` filtré sur `CONFIRMED` et `endDate <= aujourd'hui` (`STAY-008`) |
+| STAY-R6 | `verifierAnnulable` refuse dès que `sejourEstPasse` est vrai, indépendamment du `status` (`STAY-007`) |
+
+### Le test qui compte
+
+`Concurrence — création directe contre acceptation, même capacité`. Ce n'est pas un cas de la fiche, mais le risque que `STAYDEC-A` avait déjà nommé pour `STAY` : Solenne crée un séjour personnel pendant qu'elle accepte, dans le même instant, une demande qui dispute la dernière place. Les deux passent par `avecRejeuSerialisable` sur le même `contexteDisponibilite` ; une seule des deux transactions aboutit, l'autre reçoit un refus métier (`CAPACITY_EXCEEDED`), et l'occupation finale ne dépasse jamais la capacité.
+
+### Problèmes rencontrés
+
+**Un test écran a annulé le mauvais séjour.** Le jeu de démonstration porte déjà un séjour personnel confirmé de Solenne (5→9 octobre) : le premier jet de l'E2E ciblait la ligne « Solenne · » par un simple préfixe de texte, qui trouve indifféremment ce séjour de démonstration et celui que le test vient de créer. Le clic sur « Annuler ce séjour » `.last()` a fini par tomber sur la ligne du jeu de démonstration, laissant le séjour du test intact et le test rouge (`toBeHidden` jamais atteint). Corrigé en raisonnant sur le **nombre** de lignes « Solenne · » avant/après (`toHaveCount`) plutôt que sur un texte de date formaté, qui dépend en plus du jour d'exécution du test (`dans(300)`). Aucun défaut d'application : l'annulation elle-même, journal d'audit compris, fonctionnait déjà correctement sur le séjour qu'elle ciblait.
+
+### Grille de sécurité S1 → S12
+
+Pertinentes : **S2** (`STAY-S02` : un ami appelant `creerSejourPersonnel` ou `annulerSejourParSolenne` reçoit `FORBIDDEN`, avec une entrée `refus.sejour.creerPersonnel`) ; **S4** (`STAY-S04` : un ami tentant d'annuler le séjour d'un autre reçoit `NOT_FOUND` — même refus neutre qu'un séjour inexistant, aucune écriture). Sans objet ici, transverse déjà couvert : S1 (`requireUser`/`requireRole` en première ligne de chacune des cinq actions, règle non négociable n°1), S3 (`annulerSejour` filtre déjà `userId` — fusionné avec S4 dans un seul cas, aucun message ne distingue « à un autre » de « inexistant »), S5 (aucune valeur cliente qui outrepasserait un refus serveur), S6/S8/S10/S11/S12 (aucune URL ni jeton propres au module), S7 (`schemaCreationPersonnelle`, `schemaAnnulationParSolenne` bornent dates, effectifs, longueur du motif), S9 (`SejourAdminVue` n'existe que derrière `requireRole('ADMIN', …)`).
+
+### Grille de concurrence C1 → C6
+
+Sans objet au sens strict de la fiche — aucun des six cas ne nomme la ressource disputée ici (capacité, hors création/acceptation). Le risque réel, une création directe et une acceptation se disputant la dernière place, est couvert par le test dédié ci-dessus, sur le même principe que `STAYDEC-C01` : transaction `Serializable` + rejeu + contrainte d'exclusion PostgreSQL, aucune nouvelle mécanique.
+
+### Impact sur les autres modules
+
+- `STAYDEC` : `avecRejeuSerialisable` en est extrait sans changement de comportement — `decisions-sejour.ts` l'importe désormais au lieu de le définir.
+- `CAL`/`PRIV` : inchangés — un séjour `CANCELLED` était déjà filtré de l'agenda et de l'occupation, `STAY` ne fait que le confirmer par le test (`STAY-004`).
+- `DEPLOY` (à écrire) : devra brancher `cloturerSejoursTerminees` sur une tâche planifiée quotidienne, derrière un secret partagé plutôt qu'une session.
+- Lot 4 (`SLEEP`) : aucun changement attendu — aucune des actions de `STAY` ne compte elle-même (règle non négociable n°3).
+
+### Décisions à confirmer par Yassine
+
+Aucune. Le module n'a rien tranché qui ne relève de la technique.
+
+**Lot 3 — les six modules de la vague 1 (`OCCUP`, `AVAIL`, `POLICY`, `STAYREQ`, `STAYDEC`, `STAY`) sont clos. Reste la clôture du lot (trois tailles, régression complète, jugement visuel L2) avant `DEPLOY`.**
+
+---

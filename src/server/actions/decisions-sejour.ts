@@ -18,7 +18,6 @@ import {
   verifierDecidable,
   type StatutDemande,
 } from '@/domain/stays/decision'
-import type { PrismaClient } from '@/generated/prisma/client'
 import { executerAction } from '@/server/actions/executer'
 import { journaliserAudit } from '@/server/audit'
 import { requireRole } from '@/server/auth/garde'
@@ -26,6 +25,7 @@ import { visibiliteParDefaut } from '@/server/confidentialite'
 import { db } from '@/server/db'
 import { contexteDisponibilite } from '@/server/disponibilite'
 import { reglagesActuelsDeLaMaison } from '@/server/reglages'
+import { avecRejeuSerialisable, type Transaction } from '@/server/transaction-serialisable'
 
 /**
  * `STAYDEC` — arrêt `STAYDEC-A` : accepter une demande, et rien d'autre.
@@ -52,8 +52,6 @@ import { reglagesActuelsDeLaMaison } from '@/server/reglages'
  *    rejouée, pour la même raison qu'au point 2.
  */
 
-type Transaction = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0]
-
 const schemaAcceptation = z.object({
   id: schemaIdentifiant,
   /** Mot d'accueil, facultatif — il part dans la notification du demandeur. */
@@ -61,44 +59,6 @@ const schemaAcceptation = z.object({
   /** SDEC-R4 — « accepter quand même » une demande devenue incompatible. */
   confirme: z.boolean().optional(),
 })
-
-/** Nombre total de tentatives, rejeux compris. Deux suffisent à départager une
- * course à deux ; la troisième couvre le cas, rare, d'un troisième arrivant. */
-const TENTATIVES_MAX = 3
-
-/**
- * Une course perdue, quelle que soit la forme que PostgreSQL lui donne :
- * anomalie de sérialisation (`40001`), interblocage (`40P01`), violation d'une
- * contrainte d'exclusion (`23P01`), violation de l'unicité de `stays.request_id`
- * (`23505` / `P2002`), ou l'enveloppe Prisma de tout cela (`P2034`). Toutes
- * veulent dire la même chose — « recommence en regardant à nouveau » — et
- * aucune ne doit jamais atteindre un écran.
- *
- * L'unicité mérite un mot : c'est la forme que prend le **double clic** sur
- * « Accepter » (grille C6). Les deux transactions lisent la demande en
- * `PENDING`, les deux créent le séjour, et c'est l'index unique qui départage.
- * Rejouée, la perdante relit la demande — désormais `ACCEPTED` — et rend le
- * refus que SDEC-R6 prévoit, « cette demande a déjà été traitée », plutôt qu'un
- * `CONFLICT` générique qui n'apprend rien à Solenne.
- */
-const COURSES: readonly string[] = ['P2034', 'P2002', '40001', '40P01', '23P01', '23505']
-
-function estCourseDeTransaction(erreur: unknown): boolean {
-  if (typeof erreur !== 'object' || erreur === null) return false
-  const code = (erreur as { code?: unknown }).code
-  if (typeof code === 'string' && COURSES.includes(code)) return true
-  const message = (erreur as { message?: unknown }).message
-  if (typeof message !== 'string') return false
-  return (
-    message.includes('40001') ||
-    message.includes('40P01') ||
-    message.includes('23P01') ||
-    message.includes('23505') ||
-    message.includes('could not serialize') ||
-    message.includes('conflicting key value violates exclusion constraint') ||
-    message.includes('Unique constraint failed')
-  )
-}
 
 interface Acceptation {
   readonly sejourId: string
@@ -120,23 +80,9 @@ export async function accepterDemandeSejour(
     if (!validation.ok) return validation
     const donnees = validation.data
 
-    let derniereCourse: unknown = null
-
-    for (let tentative = 1; tentative <= TENTATIVES_MAX; tentative += 1) {
-      try {
-        return await db.$transaction(
-          (transaction) => accepterDansLaTransaction(transaction, donnees, solenne.id),
-          { isolationLevel: 'Serializable' },
-        )
-      } catch (erreur) {
-        if (!estCourseDeTransaction(erreur)) throw erreur
-        derniereCourse = erreur
-        // On repart de zéro : la revalidation du tour suivant lira l'état que
-        // le gagnant vient de valider, et rendra un refus qui a du sens.
-      }
-    }
-
-    throw derniereCourse
+    return avecRejeuSerialisable((transaction) =>
+      accepterDansLaTransaction(transaction, donnees, solenne.id),
+    )
   })
 }
 
