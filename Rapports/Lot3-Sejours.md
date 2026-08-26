@@ -184,10 +184,39 @@ Aucune. Le module n'a rien tranché qui ne relève de la technique.
 
 ## MODULE : STAYDEC ★ — Décision
 
-> Module en cours. Cette section ne porte pour l'instant que la **grille de
-> concurrence**, produite à l'arrêt A ; le reste du rapport (fonctionnalités,
-> règles vérifiées, grille de sécurité, impacts) est écrit à l'arrêt B, quand
-> l'écran de décision et les onze cas restants seront livrés.
+**Statut : ✅ VALIDÉ — 19 cas sur 19** (`001`, `002→004`, `005`, `006`, `007→010`, `011`, `012`, `013`, `014`, `C01`, `C05`, `C06`, `S02`, `S06`) · livré en **deux arrêts** — `STAYDEC-A` (**Opus**, revalidation en transaction sérialisable) et `STAYDEC-B` (Sonnet, file d'attente, écran de décision, refus, contre-proposition, sécurité).
+
+### Fonctionnalités réalisées
+
+- `evaluerAcceptation` (`src/domain/stays/decision.ts`, arrêt A) : le contrat de la décision — SDEC-R2 (rejeu, jamais de verdict pré-calculé), R2/R3 non forçables, le reste forçable avec `confirme: true`.
+- `accepterDemandeSejour` (arrêt A) : transaction sérialisable, rejeu jusqu'à 3 tours sur les courses (`40001`/`40P01`/`23P01`/`23505`/`P2002`), séjour + statut + notification + audit solidaires.
+- Trois Server Actions ajoutées à l'arrêt B (`src/server/actions/decisions-sejour.ts`) : `rejeterDemandeSejour` (SDEC-R5, motif obligatoire — validation Zod, pas une règle de domaine), `contreProposerDemandeSejour` (SDEC-R8, change les dates sans décider — statut, décideur et date de décision ne bougent pas), `demandesEnAttente` (SDEC — la file, triée arrivée croissante puis dépôt croissant).
+- `verifierDecisionSejour`, quatrième action de l'arrêt B : le verdict complet en lecture seule (`confirmationSuffirait`, conflits chiffrés pour Solenne, occupation avant/avec la demande). Même principe que `verifierDisponibiliteSejour` (`STAYREQ-B`) : un aperçu pour l'écran, jamais une donnée que l'écriture réutilise — SDEC-R2 reste entier, `accepterDemandeSejour` revalide pour de vrai dans sa propre transaction.
+- Écran `/gerer` : section « Demandes de séjour » au-dessus de la console existante (`FileAttenteDecisions`). Chaque demande s'ouvre sur le verdict en clair puis un choix à trois — accepter (avec confirmation si `confirmationSuffirait`), refuser (motif obligatoire), proposer d'autres dates.
+
+### Règles vérifiées
+
+| Règle | Où elle est tenue |
+|---|---|
+| SDEC-R1 | Les quatre nouvelles actions commencent par `requireRole('ADMIN', …)`, avant toute lecture (`STAYDEC-S02`) |
+| SDEC-R2 | `verifierDecisionSejour` ne fait que prévisualiser ; l'écriture rejoue tout dans sa transaction — aucun verdict d'écran ne traverse vers l'acceptation |
+| SDEC-R4 | L'écran ne propose « accepter quand même » que si `confirmationSuffirait` est vrai ; sinon aucune confirmation n'ouvre le refus (R2/R3) |
+| SDEC-R5 | `rejeterDemandeSejour` : motif requis par le schéma Zod (`STAYDEC-004`, `007`) |
+| SDEC-R6 | `verifierDecidable` (déjà écrite à l'arrêt A) revérifiée avant refus et contre-proposition — demande déjà traitée ou annulée refusée (`STAYDEC-009`, `010`) |
+| SDEC-R7 | Refus et contre-proposition écrivent la notification et l'audit dans la même transaction que le changement d'état |
+| SDEC-R8 | `contreProposerDemandeSejour` change `arrivalDate`/`departureDate`, laisse `status: 'PENDING'` et ne touche ni `decidedById` ni `decidedAt` ni `decisionNote` (`STAYDEC-008`) |
+
+### Le test qui compte
+
+`STAYDEC-013`. Trier une file semble anodin ; choisir *quoi* trier ne l'est pas. La fiche demande « les plus anciennes et les plus urgentes en tête » — deux critères, pas un. Le tri retenu (arrivée croissante, dépôt croissant à égalité) les tient tous les deux sans les opposer : l'urgence prime, l'ancienneté ne fait que départager. Le test crée cinq demandes dans le désordre pour que ce soit le tri, et non l'ordre d'insertion, qui produise le résultat.
+
+### Problèmes rencontrés
+
+Aucun, à l'arrêt B. L'aiguillage de la revalidation (§4 de `AVAIL`) et le contexte de disponibilité (`src/server/disponibilite.ts`) étaient déjà en place depuis `STAYREQ` et `STAYDEC-A` ; le verdict de lecture seule n'a fait que les appeler une troisième fois, avec la même discipline (client `db`, jamais la transaction d'écriture). Les problèmes de l'arrêt A (course sur le double clic, sentinelle de schéma) sont documentés dans `Rapports/etat.md`.
+
+### Grille de sécurité S1 → S12
+
+Pertinentes : **S2** (`STAYDEC-S02` : un ami appelant l'une des cinq actions de décision reçoit `FORBIDDEN` sur chacune, avec une entrée `refus.demandeSejour.*` par action) ; **S6** (`STAYDEC-S06` : appel direct de `accepterDemandeSejour` avec `confirme: true` forcé dans la charge — la garde tranche avant que la confirmation ne compte pour quoi que ce soit) ; **S7** (`schemaRefus` — motif non vide ; `schemaContreProposition` — dates valides via `schemaJour` + `periodeValide`) ; **S9** (`VerdictDecisionVue` n'est renvoyé qu'à `requireRole('ADMIN', …)` — jamais construit pour une session ami, contrairement à `pourAmi()` qui filtre après coup dans `STAYREQ`). Sans objet ici, transverse déjà couvert : S1, S3/S4 (aucune notion de demande « à soi » pour Solenne — elle décide de toutes), S5, S8, S10, S11, S12.
 
 ### Grille de concurrence C1 → C6 — arrêt A
 
@@ -228,3 +257,30 @@ standard pendant `C01`, `C05` et `C06`. C'est son journal interne sur une
 transaction rejouée puis convertie en refus métier : rien n'atteint l'écran, et
 les trois tests le vérifient explicitement (`message` sans `40001`, sans
 `serialize`, sans `Unique`).
+
+**Pas de nouveau tour de grille à l'arrêt B.** Le §9 de la fiche ne classe
+`CRITICAL` que la course à l'acceptation ; refus et contre-proposition n'y
+figurent pas. Les deux s'écrivent dans une transaction ordinaire (pas
+`Serializable`), sans rejeu : la seule chose qu'ils doivent tenir est SDEC-R6
+(une demande ne se décide qu'une fois), déjà vérifiée en lecture avant
+l'écriture. Aucune plateforme de contention nouvelle : la file d'attente et le
+verdict de lecture ne font qu'une seule requête chacun, jamais deux écritures
+concurrentes sur la même ligne.
+
+### Impact sur les autres modules
+
+- `STAYREQ` (déjà livré) : inchangé — `verifierDisponibiliteSejour` et
+  `verifierDecisionSejour` partagent `src/server/disponibilite.ts` sans le
+  modifier.
+- `STAY` (à écrire, `S12`) : lira les mêmes `stays` que `STAYDEC` produit ;
+  aucune interface nouvelle à prévoir, `accepterDemandeSejour` n'a pas changé
+  à cet arrêt.
+- Lot 4 (`SLEEP`) : aucun changement attendu — les quatre nouvelles actions
+  consomment `AVAIL`/`OCCUP`, elles ne comptent jamais elles-mêmes (règle non
+  négociable n°3).
+
+### Décisions à confirmer par Yassine
+
+Aucune. Le module n'a rien tranché qui ne relève de la technique.
+
+---

@@ -2,10 +2,22 @@
 
 import { resumePourSolenne } from '@/domain/availability/conflits'
 import { debutDeJour } from '@/domain/core/dates'
+import type { CodeErreur } from '@/domain/core/error-codes'
 import { ErreurMetier, succes, type Resultat } from '@/domain/core/result'
-import { LONGUEURS, schemaIdentifiant, validerEntree, z } from '@/domain/core/validation'
+import {
+  LONGUEURS,
+  schemaIdentifiant,
+  schemaJour,
+  validerEntree,
+  z,
+} from '@/domain/core/validation'
+import { periodeValide } from '@/domain/house/blocages'
 import { occupationSur } from '@/domain/occupancy/occupation'
-import { evaluerAcceptation, type StatutDemande } from '@/domain/stays/decision'
+import {
+  evaluerAcceptation,
+  verifierDecidable,
+  type StatutDemande,
+} from '@/domain/stays/decision'
 import type { PrismaClient } from '@/generated/prisma/client'
 import { executerAction } from '@/server/actions/executer'
 import { journaliserAudit } from '@/server/audit'
@@ -259,5 +271,287 @@ async function accepterDansLaTransaction(
   return succes({
     sejourId: sejour.id,
     compatible: verdict.disponibilite.compatible,
+  })
+}
+
+/**
+ * `STAYDEC-B`.
+ *
+ * Trois pièces manquaient à l'arrêt `A`, qui ne tenait que l'acceptation :
+ *
+ * 1. **La file d'attente** (`STAYDEC-013`) : les demandes `PENDING`, triées
+ *    pour que l'urgence (arrivée proche) et l'ancienneté (déposée tôt)
+ *    remontent ensemble en tête — arrivée croissante d'abord, dépôt croissant
+ *    à égalité.
+ * 2. **Le verdict complet, en lecture seule** (`STAYDEC-002`, `STAYDEC-003`) :
+ *    l'écran de décision a besoin de `confirmationSuffirait` et des chiffres
+ *    d'occupation, qu'un refus d'écriture ne peut pas porter (`Echec` n'a de
+ *    place que pour un code et un message). Même principe que
+ *    `verifierDisponibiliteSejour` (`STAYREQ-B`) : un aperçu, pas une
+ *    décision. SDEC-R2 reste entier — `accepterDemandeSejour` revalide pour de
+ *    vrai, dans sa propre transaction.
+ * 3. **Refus et contre-proposition** (SDEC-R5, SDEC-R8). Aucun des deux ne
+ *    joue la course à la capacité que l'acceptation joue (§9 de la fiche ne
+ *    les classe pas `CRITICAL`) : pas de `Serializable`, pas de rejeu — une
+ *    transaction ordinaire suffit à garder l'écriture, la notification et
+ *    l'audit solidaires (SDEC-R7). SDEC-R6 est vérifiée avant l'écriture, avec
+ *    la fonction déjà éprouvée par `evaluerAcceptation`.
+ */
+
+export interface DemandeEnAttenteVue {
+  readonly id: string
+  readonly requesterId: string
+  readonly requesterPrenom: string
+  readonly arrivee: Date
+  readonly depart: Date
+  readonly adultes: number
+  readonly enfants: number
+  readonly exclusif: boolean
+  readonly creeLe: Date
+}
+
+/** `STAYDEC-013` — la file d'attente de Solenne. */
+export async function demandesEnAttente(): Promise<
+  Resultat<readonly DemandeEnAttenteVue[]>
+> {
+  return executerAction('demandeSejour.fileAttente', async () => {
+    await requireRole('ADMIN', 'demandeSejour.fileAttente')
+
+    const demandes = await db.stayRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { requester: { select: { firstName: true } } },
+      orderBy: [{ arrivalDate: 'asc' }, { createdAt: 'asc' }],
+    })
+
+    return succes(
+      demandes.map((demande) => ({
+        id: demande.id,
+        requesterId: demande.requesterId,
+        requesterPrenom: demande.requester.firstName,
+        arrivee: demande.arrivalDate,
+        depart: demande.departureDate,
+        adultes: demande.adults,
+        enfants: demande.children,
+        exclusif: demande.exclusive,
+        creeLe: demande.createdAt,
+      })),
+    )
+  })
+}
+
+const schemaDecisionId = z.object({ id: schemaIdentifiant })
+
+export interface VerdictDecisionVue {
+  readonly compatible: boolean
+  /** SDEC-R4 : vrai quand seule la confirmation manque. */
+  readonly confirmationSuffirait: boolean
+  readonly refus: { readonly code: CodeErreur; readonly message: string } | null
+  /** Tous les conflits, chiffrés pour Solenne (`resumePourSolenne`). */
+  readonly conflits: readonly { readonly code: CodeErreur; readonly message: string }[]
+  readonly occupationAvantDemande: number
+  readonly occupationAvecDemande: number
+  readonly capacite: number
+}
+
+/**
+ * `STAYDEC-002` / `STAYDEC-003` — le verdict que l'écran de décision affiche
+ * en clair. Lecture seule : voir le point 2 de l'en-tête.
+ */
+export async function verifierDecisionSejour(
+  entree: unknown,
+): Promise<Resultat<VerdictDecisionVue>> {
+  return executerAction('demandeSejour.verifierDecision', async () => {
+    await requireRole('ADMIN', 'demandeSejour.verifierDecision')
+
+    const validation = validerEntree(schemaDecisionId, entree)
+    if (!validation.ok) return validation
+    const { id } = validation.data
+
+    const demande = await db.stayRequest.findUnique({
+      where: { id },
+      include: { requester: { select: { role: true } } },
+    })
+    if (!demande) throw new ErreurMetier('NOT_FOUND')
+
+    const maison = await db.house.findFirst({ orderBy: { createdAt: 'asc' } })
+    if (!maison) throw new ErreurMetier('NOT_FOUND')
+
+    const maintenant = new Date()
+    const aPartirDe = debutDeJour(maintenant)
+
+    const [reglages, contexte] = await Promise.all([
+      reglagesActuelsDeLaMaison(maison.id),
+      contexteDisponibilite(db, maison.capacityMax, { aPartirDe }),
+    ])
+
+    const occupationPeriode = occupationSur(contexte.presences, {
+      debut: demande.arrivalDate,
+      fin: demande.departureDate,
+    })
+
+    const verdict = evaluerAcceptation(
+      {
+        arrivee: demande.arrivalDate,
+        depart: demande.departureDate,
+        adultes: demande.adults,
+        enfants: demande.children,
+        exclusif: demande.exclusive,
+        statut: demande.status as StatutDemande,
+        demandeurEstSolenne: demande.requester.role === 'ADMIN',
+      },
+      { ...contexte, reglages, periodeOccupee: occupationPeriode.total > 0 },
+      { maintenant },
+    )
+
+    return succes({
+      compatible: verdict.disponibilite.compatible,
+      confirmationSuffirait: verdict.confirmationSuffirait,
+      refus: verdict.refus,
+      conflits: verdict.disponibilite.conflits.map((conflit) => ({
+        code: conflit.code,
+        message: resumePourSolenne(conflit),
+      })),
+      occupationAvantDemande: occupationPeriode.total,
+      occupationAvecDemande: occupationPeriode.total + demande.adults + demande.children,
+      capacite: contexte.capacite,
+    })
+  })
+}
+
+const schemaRefus = z.object({
+  id: schemaIdentifiant,
+  motif: z
+    .string({ error: 'Le motif est obligatoire.' })
+    .trim()
+    .min(1, { error: 'Le motif est obligatoire.' })
+    .max(LONGUEURS.moyenne),
+})
+
+/** SDEC-R5 / R7 — un refus exige un motif ; il part avec la notification. */
+export async function rejeterDemandeSejour(entree: unknown): Promise<Resultat<null>> {
+  return executerAction('demandeSejour.rejeter', async () => {
+    const solenne = await requireRole('ADMIN', 'demandeSejour.rejeter')
+
+    const validation = validerEntree(schemaRefus, entree)
+    if (!validation.ok) return validation
+    const donnees = validation.data
+
+    const demande = await db.stayRequest.findUnique({ where: { id: donnees.id } })
+    if (!demande) throw new ErreurMetier('NOT_FOUND')
+
+    const indecidable = verifierDecidable(demande.status as StatutDemande)
+    if (indecidable) {
+      return { ok: false, code: indecidable.code, message: indecidable.message }
+    }
+
+    const maintenant = new Date()
+
+    await db.$transaction(async (transaction) => {
+      await transaction.stayRequest.update({
+        where: { id: demande.id },
+        data: {
+          status: 'REJECTED',
+          decidedById: solenne.id,
+          decidedAt: maintenant,
+          decisionNote: donnees.motif,
+        },
+      })
+
+      await transaction.notification.create({
+        data: {
+          userId: demande.requesterId,
+          type: 'sejour.refuse',
+          title: 'Votre demande de séjour a été refusée',
+          body: donnees.motif,
+          entityType: 'StayRequest',
+          entityId: demande.id,
+          payload: { arrivee: demande.arrivalDate, depart: demande.departureDate },
+        },
+      })
+
+      await journaliserAudit(
+        {
+          acteurId: solenne.id,
+          action: 'demandeSejour.rejeter',
+          entite: 'StayRequest',
+          entiteId: demande.id,
+          avant: { statut: demande.status },
+          apres: { statut: 'REJECTED' },
+        },
+        transaction,
+      )
+    })
+
+    return succes(null)
+  })
+}
+
+const schemaContreProposition = z.object({
+  id: schemaIdentifiant,
+  arrivee: schemaJour,
+  depart: schemaJour,
+  /** Part dans la notification, pour dire pourquoi. */
+  message: z.string().trim().max(LONGUEURS.longue).optional(),
+})
+
+/**
+ * SDEC-R8 — change les dates, ne décide rien : la demande reste `PENDING`,
+ * dans le camp du demandeur. `decidedById`/`decidedAt` ne bougent pas — ce
+ * n'est pas une décision.
+ */
+export async function contreProposerDemandeSejour(
+  entree: unknown,
+): Promise<Resultat<null>> {
+  return executerAction('demandeSejour.contreProposer', async () => {
+    const solenne = await requireRole('ADMIN', 'demandeSejour.contreProposer')
+
+    const validation = validerEntree(schemaContreProposition, entree)
+    if (!validation.ok) return validation
+    const donnees = validation.data
+
+    if (!periodeValide(donnees.arrivee, donnees.depart)) {
+      throw new ErreurMetier('INVALID_DATES')
+    }
+
+    const demande = await db.stayRequest.findUnique({ where: { id: donnees.id } })
+    if (!demande) throw new ErreurMetier('NOT_FOUND')
+
+    const indecidable = verifierDecidable(demande.status as StatutDemande)
+    if (indecidable) {
+      return { ok: false, code: indecidable.code, message: indecidable.message }
+    }
+
+    await db.$transaction(async (transaction) => {
+      await transaction.stayRequest.update({
+        where: { id: demande.id },
+        data: { arrivalDate: donnees.arrivee, departureDate: donnees.depart },
+      })
+
+      await transaction.notification.create({
+        data: {
+          userId: demande.requesterId,
+          type: 'sejour.contre-proposition',
+          title: 'Solenne propose d’autres dates',
+          body: donnees.message ?? null,
+          entityType: 'StayRequest',
+          entityId: demande.id,
+          payload: { arrivee: donnees.arrivee, depart: donnees.depart },
+        },
+      })
+
+      await journaliserAudit(
+        {
+          acteurId: solenne.id,
+          action: 'demandeSejour.contreProposer',
+          entite: 'StayRequest',
+          entiteId: demande.id,
+          avant: { arrivee: demande.arrivalDate, depart: demande.departureDate },
+          apres: { arrivee: donnees.arrivee, depart: donnees.depart },
+        },
+        transaction,
+      )
+    })
+
+    return succes(null)
   })
 }

@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { ConsoleGestion } from '@/components/formulaires/console-gestion'
+import { FileAttenteDecisions } from '@/components/formulaires/file-attente-decisions'
 import { Bouton } from '@/components/ui/bouton'
+import { demandesEnAttente } from '@/server/actions/decisions-sejour'
 import { listerInvitations } from '@/server/actions/invitations'
 import { listerUtilisateurs } from '@/server/actions/utilisateurs'
 import { requireAdminPage } from '@/server/auth/garde'
@@ -14,14 +16,22 @@ export const metadata: Metadata = { title: 'Gérer' }
 export default async function PageGerer() {
   const solenne = await requireAdminPage('gerer')
 
-  const [utilisateurs, invitations] = await Promise.all([
+  const [utilisateurs, invitations, demandes] = await Promise.all([
     listerUtilisateurs(),
     listerInvitations(),
+    demandesEnAttente(),
   ])
-  if (!utilisateurs.ok || !invitations.ok) notFound()
+  if (!utilisateurs.ok || !invitations.ok || !demandes.ok) notFound()
 
   return (
     <div className="flex flex-col gap-8">
+      <section aria-labelledby="titre-demandes" className="flex flex-col gap-3">
+        <h2 id="titre-demandes" className="font-titre text-3xl leading-tight text-encre">
+          Demandes de séjour
+        </h2>
+        <FileAttenteDecisions demandes={demandes.data} />
+      </section>
+
       <Bouton asChild variante="secondaire" pleineLargeur>
         <Link href="/gerer/maison">
           <Trees aria-hidden="true" />

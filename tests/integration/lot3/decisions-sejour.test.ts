@@ -25,7 +25,13 @@ vi.mock('@/server/audit', async (importOriginal) => {
 import { occupationSur } from '@/domain/occupancy/occupation'
 import type { PrismaClient } from '@/generated/prisma/client'
 import { creerBlocage } from '@/server/actions/blocages'
-import { accepterDemandeSejour } from '@/server/actions/decisions-sejour'
+import {
+  accepterDemandeSejour,
+  contreProposerDemandeSejour,
+  demandesEnAttente,
+  rejeterDemandeSejour,
+  verifierDecisionSejour,
+} from '@/server/actions/decisions-sejour'
 import { reinitialiserAntiSaturation } from '@/server/audit'
 import { NOM_COOKIE_SESSION, ouvrirSession } from '@/server/auth/session'
 import { toutesLesPresences } from '@/server/occupation'
@@ -35,6 +41,7 @@ import {
   creerAdministratrice,
   creerDemande,
   creerMaison,
+  creerSejour,
   creerUtilisateur,
   leJour,
 } from '../fabriques'
@@ -50,9 +57,11 @@ import {
  * la décision seule ; `C01` et `C05` la mettent en concurrence.
  *
  * La part de domaine pur (ce qui se force, ce qui ne se force pas, le rejeu du
- * moteur) est isolée dans `tests/unite/lot3/staydec.test.ts`. Les onze cas
- * restants du module (refus, contre-proposition, file d'attente, écran,
- * sécurité `S02`/`S06`) appartiennent à `STAYDEC-B`.
+ * moteur) est isolée dans `tests/unite/lot3/staydec.test.ts`.
+ *
+ * `STAYDEC-B` ajoute les onze cas restants, plus bas dans ce même fichier :
+ * la file d'attente, le verdict en lecture seule pour l'écran, le refus,
+ * la contre-proposition, et la sécurité `S02`/`S06`.
  */
 
 const client: PrismaClient = clientDeTest()
@@ -403,4 +412,262 @@ describe('STAYDEC-C05 — acceptation et blocage au même instant', () => {
       expect(blocage.message).not.toContain('40001')
     }
   }, 20_000)
+})
+
+describe('STAYDEC-002 — verdict affiché : compatible', () => {
+  it('rend le total et la capacité, sans exiger de confirmation', async () => {
+    const { maison, jeton, marc } = await decor(12)
+    const lea = await creerUtilisateur(client, { prenom: 'Léa' })
+    await creerSejour(client, maison.id, lea.id, { du: DU, au: AU, adultes: 4 })
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 4 })
+
+    const verdict = await en(jeton, () => verifierDecisionSejour({ id: demande.id }))
+    expect(verdict.ok).toBe(true)
+    if (!verdict.ok) return
+    expect(verdict.data.compatible).toBe(true)
+    expect(verdict.data.confirmationSuffirait).toBe(false)
+    expect(verdict.data.refus).toBeNull()
+    expect(verdict.data.occupationAvantDemande).toBe(4)
+    expect(verdict.data.occupationAvecDemande).toBe(8)
+    expect(verdict.data.capacite).toBe(12)
+  })
+})
+
+describe('STAYDEC-003 — verdict d’incompatibilité', () => {
+  it('détaille le dépassement de capacité, sans toucher à la demande (lecture seule)', async () => {
+    const { maison, jeton, marc } = await decor(12)
+    const lea = await creerUtilisateur(client, { prenom: 'Léa' })
+    await creerSejour(client, maison.id, lea.id, { du: DU, au: AU, adultes: 10 })
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 4 })
+
+    const verdict = await en(jeton, () => verifierDecisionSejour({ id: demande.id }))
+    expect(verdict.ok).toBe(true)
+    if (!verdict.ok) return
+    expect(verdict.data.compatible).toBe(false)
+    expect(verdict.data.confirmationSuffirait).toBe(true)
+    expect(verdict.data.occupationAvantDemande).toBe(10)
+    expect(verdict.data.occupationAvecDemande).toBe(14)
+    expect(verdict.data.capacite).toBe(12)
+    const capacite = verdict.data.conflits.find((c) => c.code === 'CAPACITY_EXCEEDED')
+    expect(capacite?.message).toContain('14 personnes pour 12 places')
+
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('PENDING')
+  })
+})
+
+describe('STAYDEC-004 — refus motivé', () => {
+  it('passe la demande à REJECTED, garde le motif, notifie et journalise', async () => {
+    const { jeton, marc } = await decor()
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 4 })
+
+    const resultat = await en(jeton, () =>
+      rejeterDemandeSejour({ id: demande.id, motif: 'La maison est prise par ailleurs.' }),
+    )
+    expect(resultat.ok).toBe(true)
+
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('REJECTED')
+    expect(enBase.decisionNote).toBe('La maison est prise par ailleurs.')
+    expect(enBase.decidedAt).not.toBeNull()
+
+    const notification = await client.notification.findFirstOrThrow({
+      where: { userId: marc.id, type: 'sejour.refuse' },
+    })
+    expect(notification.body).toBe('La maison est prise par ailleurs.')
+
+    const trace = await client.auditLog.findFirstOrThrow({
+      where: { action: 'demandeSejour.rejeter', entityId: demande.id },
+    })
+    expect(trace.actorId).toBeTruthy()
+  })
+})
+
+describe('STAYDEC-007 — refus sans motif', () => {
+  it('refuse la validation, sans toucher à la demande', async () => {
+    const { jeton, marc } = await decor()
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 4 })
+
+    const resultat = await en(jeton, () => rejeterDemandeSejour({ id: demande.id, motif: '   ' }))
+    expect(resultat.ok).toBe(false)
+    if (resultat.ok) return
+    expect(resultat.code).toBe('VALIDATION')
+    expect(resultat.champs?.motif).toBe('Le motif est obligatoire.')
+
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('PENDING')
+  })
+})
+
+describe('STAYDEC-008 — contre-proposition', () => {
+  it('déplace les dates, laisse la demande en attente côté demandeur, et notifie', async () => {
+    const { jeton, marc } = await decor()
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 2 })
+
+    const resultat = await en(jeton, () =>
+      contreProposerDemandeSejour({
+        id: demande.id,
+        arrivee: '2027-09-19',
+        depart: '2027-09-21',
+        message: 'Une nuit plus tard, ça vous irait ?',
+      }),
+    )
+    expect(resultat.ok).toBe(true)
+
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('PENDING')
+    expect(enBase.arrivalDate).toEqual(leJour('2027-09-19'))
+    expect(enBase.departureDate).toEqual(leJour('2027-09-21'))
+    // SDEC-R8 : non confirmée — ni décideur, ni date de décision, ni motif.
+    expect(enBase.decidedById).toBeNull()
+    expect(enBase.decidedAt).toBeNull()
+    expect(enBase.decisionNote).toBeNull()
+
+    const notification = await client.notification.findFirstOrThrow({
+      where: { userId: marc.id, type: 'sejour.contre-proposition' },
+    })
+    expect(notification.body).toBe('Une nuit plus tard, ça vous irait ?')
+  })
+})
+
+describe('STAYDEC-009 — demande déjà traitée', () => {
+  it('refuse une seconde acceptation', async () => {
+    const { jeton, marc } = await decor()
+    const demande = await creerDemande(client, marc.id, {
+      du: DU,
+      au: AU,
+      adultes: 2,
+      statut: 'ACCEPTED',
+    })
+
+    const resultat = await en(jeton, () => accepterDemandeSejour({ id: demande.id }))
+    expect(resultat.ok).toBe(false)
+    if (resultat.ok) return
+    expect(resultat.code).toBe('REQUEST_ALREADY_DECIDED')
+    expect(resultat.message).toContain('déjà été traitée')
+  })
+})
+
+describe('STAYDEC-010 — demande annulée par le demandeur', () => {
+  it('refuse l’acceptation, avec un message explicite', async () => {
+    const { jeton, marc } = await decor()
+    const demande = await creerDemande(client, marc.id, {
+      du: DU,
+      au: AU,
+      adultes: 2,
+      statut: 'CANCELLED',
+    })
+
+    const resultat = await en(jeton, () => accepterDemandeSejour({ id: demande.id }))
+    expect(resultat.ok).toBe(false)
+    if (resultat.ok) return
+    expect(resultat.code).toBe('REQUEST_CANCELLED')
+    expect(resultat.message).toContain('annulée')
+  })
+})
+
+describe('STAYDEC-012 — notification au demandeur', () => {
+  it('ne porte que ce que Solenne a écrit, jamais l’effectif ni les tiers', async () => {
+    const { maison, jeton, marc } = await decor()
+    const lea = await creerUtilisateur(client, { prenom: 'Léa' })
+    await creerSejour(client, maison.id, lea.id, { du: DU, au: AU, adultes: 4 })
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 4 })
+
+    const resultat = await en(jeton, () =>
+      accepterDemandeSejour({ id: demande.id, message: 'Bienvenue !' }),
+    )
+    expect(resultat.ok).toBe(true)
+
+    const notification = await client.notification.findFirstOrThrow({
+      where: { userId: marc.id, type: 'sejour.accepte' },
+    })
+    expect(notification.body).toBe('Bienvenue !')
+    expect(notification.body).not.toContain('Léa')
+    const payload = notification.payload as Record<string, unknown>
+    expect(Object.keys(payload).sort()).toEqual(['arrivee', 'depart'])
+  })
+})
+
+describe('STAYDEC-013 — file d’attente ordonnée', () => {
+  it('place les plus urgentes en tête, les plus anciennes en cas d’égalité', async () => {
+    const solenne = await creerAdministratrice(client)
+    const jeton = await sessionPour(solenne.id)
+
+    async function demandeEnAttente(prenom: string, arrivee: string) {
+      const utilisateur = await creerUtilisateur(client, { prenom })
+      return creerDemande(client, utilisateur.id, { du: arrivee, au: '2027-12-31', adultes: 2 })
+    }
+
+    // Créées dans le désordre, pour que le tri (et non l'insertion) fasse foi.
+    const a = await demandeEnAttente('A', '2027-11-10')
+    const b = await demandeEnAttente('B', '2027-11-05')
+    const c = await demandeEnAttente('C', '2027-11-05')
+    const d = await demandeEnAttente('D', '2027-12-01')
+    const e = await demandeEnAttente('E', '2027-11-01')
+
+    const resultat = await en(jeton, () => demandesEnAttente())
+    expect(resultat.ok).toBe(true)
+    if (!resultat.ok) return
+    expect(resultat.data.map((demande) => demande.id)).toEqual([e.id, b.id, c.id, a.id, d.id])
+  })
+})
+
+describe('STAYDEC-S02 — un ami ne peut décider de rien', () => {
+  it('refuse toute action de décision, et journalise chaque refus', async () => {
+    const { marc } = await decor()
+    const ami = await creerUtilisateur(client, { prenom: 'Ami' })
+    const jetonAmi = await sessionPour(ami.id)
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 2 })
+
+    const acceptation = await en(jetonAmi, () => accepterDemandeSejour({ id: demande.id }))
+    const refus = await en(jetonAmi, () =>
+      rejeterDemandeSejour({ id: demande.id, motif: 'Non' }),
+    )
+    const contre = await en(jetonAmi, () =>
+      contreProposerDemandeSejour({ id: demande.id, arrivee: '2027-09-19', depart: '2027-09-21' }),
+    )
+    const file = await en(jetonAmi, () => demandesEnAttente())
+    const verdict = await en(jetonAmi, () => verifierDecisionSejour({ id: demande.id }))
+
+    for (const resultat of [acceptation, refus, contre, file, verdict]) {
+      expect(resultat.ok).toBe(false)
+      if (!resultat.ok) expect(resultat.code).toBe('FORBIDDEN')
+    }
+
+    // Interdit absolu (§5 de la fiche) : rien n'a bougé.
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('PENDING')
+    expect(await client.stay.count()).toBe(0)
+
+    const trace = await client.auditLog.findFirst({
+      where: { action: 'refus.demandeSejour.accepter', actorId: ami.id },
+    })
+    expect(trace).not.toBeNull()
+  })
+})
+
+describe('STAYDEC-S06 — appel direct de l’acceptation, requête forgée', () => {
+  it('la garde se déclenche même avec une confirmation forcée dans la requête', async () => {
+    const { marc } = await decor()
+    const intrus = await creerUtilisateur(client, { prenom: 'Intrus' })
+    const jetonIntrus = await sessionPour(intrus.id)
+    const demande = await creerDemande(client, marc.id, { du: DU, au: AU, adultes: 2 })
+
+    const resultat = await en(jetonIntrus, () =>
+      accepterDemandeSejour({ id: demande.id, confirme: true, message: 'Je m’installe.' }),
+    )
+    expect(resultat.ok).toBe(false)
+    if (resultat.ok) return
+    expect(resultat.code).toBe('FORBIDDEN')
+
+    expect(await client.stay.count()).toBe(0)
+    expect(await client.notification.count()).toBe(0)
+    const enBase = await client.stayRequest.findUniqueOrThrow({ where: { id: demande.id } })
+    expect(enBase.status).toBe('PENDING')
+
+    const trace = await client.auditLog.findFirst({
+      where: { action: 'refus.demandeSejour.accepter', actorId: intrus.id },
+    })
+    expect(trace).not.toBeNull()
+  })
 })
