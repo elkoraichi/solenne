@@ -6,99 +6,74 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `ab27862` — `STAYREQ` clos (20/20), `POLICY` 16/16, `STAYDEC-A` (8 cas sur 19). Journal §14 entrée 1.16 et tableau de bord §2 à jour |
+| **Dernier commit** | `ab27862` (non commité depuis) — `STAYDEC` ★ clos (19/19), lot 3 à un module de sa fin. Journal §14 entrée 1.17 et tableau de bord §2 à jour. Reste à committer les changements de `STAYDEC-B` |
 | **Lot en cours** | 3 — Séjours ★ (vague 1) |
-| **Module en cours** | `STAYDEC` ★ — arrêt A : **7 cas + grille C1→C6 verts** |
-| **Arrêt en cours** | aucun — `STAYDEC-A` est **clos** (7 cas de la fiche + `C06`, grille C1→C6, régression, journal, tableau de bord, commit) |
-| **Prochain arrêt** | `STAYDEC-B` — **Sonnet**, session neuve. Cas `002→004`, `007→010`, `012`, `013`, `S02`, `S06` (11) : file d'attente, écran de décision, refus motivé, contre-proposition, 320 px, rapport de module |
-| **Prochaine action** | Lire la section `STAYDEC` de la fiche du lot 3 (`sed -n '350,423p'`), puis écrire les cas de `STAYDEC-B`. **Point d'attention** : l'écran a besoin du verdict complet (`confirmationSuffirait`) que le refus d'écriture ne peut pas porter — prévoir une action de lecture, sur le modèle de `verifierDisponibiliteSejour` |
-| **Suite de tests** | **821 Vitest verts en 48 s**, unité + intégration, régression complète rejouée. `npx tsc --noEmit` et `npx eslint .` muets. Playwright **pas rejoué** |
+| **Module en cours** | `STAY` — dernier module du lot |
+| **Arrêt en cours** | aucun — `STAYDEC-B` est **clos** (11 cas de la fiche, écran `/gerer`, sécurité S02/S06, régression, Playwright 320/768/1440, journal, tableau de bord) |
+| **Prochain arrêt** | `STAY` — **Sonnet**, session neuve. Les 10 cas de la fiche (`001→010`) : séjours de Solenne créés sans demande, annulation des deux côtés, libération de la capacité, passage en `COMPLETED`, rapport de module, **clôture du lot 3** |
+| **Prochaine action** | Lire la section `STAY` de la fiche du lot 3 (`sed -n '427,488p'`), puis écrire les 10 cas. `STAYDEC-A` a déjà posé `verifierDecidable` et le contexte de disponibilité ; `STAY` n'a pas de transaction concurrente à inventer — l'annulation libère la capacité en la retirant simplement du registre `OCCUP`, déjà démontré par `STAYDEC-C05` |
+| **Suite de tests** | **832 Vitest verts en ~49 s**, unité + intégration, régression complète rejouée. `npx tsc --noEmit` et `npx eslint .` muets. Playwright rejoué sur l'écran `/gerer` aux trois tailles (320/768/1440) : 29 vérifications au vert |
 | **En attente de Yassine** | rien |
 
-## `STAYDEC-A` — les 7 cas, écrits et verts (2ᵉ session Opus du 22/08/2026)
+## `STAYDEC-B` — les onze cas restants, écrits et verts (3ᵉ session du 22/08/2026, Sonnet)
 
-`tests/unite/lot3/staydec.test.ts` (18 assertions de domaine pur) et
-`tests/integration/lot3/decisions-sejour.test.ts` (les 7 cas : `001`, `005`,
-`006`, `011`, `014`, `C01`, `C05`). Trois choses ont bougé dans le code, toutes
-révélées par un test rouge, aucune décidée à l'avance :
+Fichier étendu : `src/server/actions/decisions-sejour.ts` (quatre fonctions
+ajoutées), `tests/integration/lot3/decisions-sejour.test.ts` (11 nouveaux cas),
+`src/components/formulaires/file-attente-decisions.tsx` (nouveau), `src/app/(admin)/gerer/page.tsx`
+(section ajoutée).
 
-1. **Le refus « il faut confirmer » porte désormais le code du conflit**
-   (`CAPACITY_EXCEEDED`, `BLOCKED_PERIOD`, `MAX_PARTY_SIZE`…), plus le code
-   générique `DECISION_CONFLICT_UNCONFIRMED`. `STAYDEC-C01` exige littéralement
-   `CAPACITY_EXCEEDED` pour le perdant de la course, et `Echec` n'a de place
-   que pour **un** code : le faire porter par la raison, pas par la consigne.
-   `DECISION_CONFLICT_UNCONFIRMED` devient la phrase ajoutée derrière la raison
-   (« La maison serait à 12 personnes pour 10 places. Confirmez explicitement
-   pour accepter quand même. »). Le drapeau structuré `confirmationSuffirait`
-   reste dans le verdict du domaine.
-   **Conséquence pour `STAYDEC-B`** : l'écran ne peut pas déduire « forçable »
-   du refus d'écriture — il lui faut une action de lecture qui rende le verdict
-   complet, sur le modèle de `verifierDisponibiliteSejour` (`STAYREQ-B`).
-2. **L'audit d'une acceptation forcée garde le code du conflit**, pas seulement
-   sa phrase : `{ code, resume }` (un message se réécrit, un code jamais).
-3. **Sentinelle de schéma remise au vert** : `down.sql` manquait pour la
-   migration d'exclusivité stricte, et `SETUP-006` / `SETUP-007` ignoraient la
-   nouvelle contrainte. Les deux échouaient **avant** cette session.
-4. **Grille C1→C6 déroulée** (détail dans `Rapports/Lot3-Sejours.md`, section
-   `STAYDEC`). C1 et C5 étaient couverts par les cas de la fiche ; **C6 ne
-   l'était pas et a trouvé un vrai défaut** : le double clic sur « Accepter »
-   rendait `CONFLICT` au lieu du refus SDEC-R6. La violation d'unicité
-   (`P2002` / `23505`) rejoint désormais `40001` dans les courses rejouées, et
-   un 8ᵉ test le verrouille. C2/C3/C4 sans objet, vérifié par les écritures
-   réelles du fichier. Écart assumé avec le §8 : pas de verrou de ligne — sous
-   `Serializable` il ne supprimerait pas le rejeu, il changerait seulement le
-   code d'erreur.
+1. **`verifierDecisionSejour`** — lecture seule, le verdict complet promis à
+   l'entrée 1.16 : `confirmationSuffirait`, conflits chiffrés pour Solenne
+   (`resumePourSolenne`), occupation avant/avec la demande. Rejoue
+   `evaluerAcceptation` sur `db`, jamais sur un client de transaction — SDEC-R2
+   reste entier, l'écriture ne réutilise jamais ce verdict.
+2. **`rejeterDemandeSejour`** et **`contreProposerDemandeSejour`** — transaction
+   ordinaire, pas `Serializable` : le §9 de la fiche ne classe `CRITICAL` que la
+   course à l'acceptation. `verifierDecidable` (déjà écrite à l'arrêt A)
+   revérifiée avant chacune. La contre-proposition change les dates, laisse
+   `status: 'PENDING'`, ne touche ni `decidedById` ni `decidedAt` ni
+   `decisionNote` (SDEC-R8 — ce n'est pas une décision).
+3. **`demandesEnAttente`** — la file, triée arrivée croissante puis dépôt
+   croissant à égalité : la fiche demandait « les plus anciennes et les plus
+   urgentes en tête », deux critères tenus par un seul tri.
+4. **Écran `/gerer`** — section « Demandes de séjour » au-dessus de la console
+   existante (`FileAttenteDecisions`). Verdict chargé à l'ouverture de chaque
+   demande ; trois choix : accepter (confirmation exigée si
+   `confirmationSuffirait`), refuser (motif obligatoire), proposer d'autres
+   dates. Aucun problème d'écran cette fois : contexte de disponibilité et
+   `CaseACocher` déjà posés depuis `STAYREQ`.
+5. **Sécurité `S02`/`S06`** — un ami reçoit `FORBIDDEN` sur les cinq actions de
+   décision, avec une entrée d'audit `refus.demandeSejour.*` par action ;
+   l'appel direct de l'acceptation avec `confirme: true` forcé dans la charge
+   ne contourne rien, la garde tranche avant que la confirmation ne compte.
 
-**Vérifié depuis** : `visibiliteParDefaut` et `journaliserAudit` acceptent bien
-le client de transaction à l'exécution (`001` et `011` le prouvent).
+Aucun nouveau code d'erreur (le motif obligatoire se tient en Zod, pas en
+domaine), aucune migration.
 
-Bruit connu, sans conséquence : Prisma écrit `prisma:error … write conflict` sur
-la sortie standard pendant `C01` et `C05`. C'est son journal interne, sur une
-transaction rejouée puis convertie en refus métier — rien n'atteint l'écran.
+## `STAYDEC-A`, pour mémoire
 
-### Ce qui était déjà écrit (1ʳᵉ session Opus du 22/08/2026)
-
-Quatre fichiers, tous compilés (`npx tsc --noEmit` muet) et propres (`npx eslint` muet) :
-
-1. **`prisma/migrations/20260822120000_lot3_staydec_exclusivite_stricte/`** — appliquée.
-   Le lot 0 couvrait déjà exclusif↔exclusif. Manquait le cas mixte : nouvelle
-   contrainte `stays_exclusif_sans_cohabitation`, `EXCLUDE … "exclusive" WITH <>`.
-   Les deux contraintes réunies couvrent D2 en entier.
-2. **`src/domain/core/error-codes.ts` / `messages.ts`** — nouveau bloc
-   `CODES_STAYDEC` : `REQUEST_CANCELLED`, `DECISION_CONFLICT_UNCONFIRMED`.
-3. **`src/domain/stays/decision.ts`** — le contrat. Trois choix figés, tous
-   argumentés dans l'en-tête du fichier :
-   - `evaluerAcceptation` ne reçoit **aucun verdict pré-calculé** (SDEC-R2) ;
-   - `demandeurEstSolenne`, jamais le décideur — sinon `POLICY` ne s'appliquerait
-     plus à personne (POL-R1) ;
-   - **R2/R3 ne sont pas forçables** ; R1/R4/R8 le sont avec `confirme: true`.
-4. **`src/server/actions/decisions-sejour.ts`** — `accepterDemandeSejour`.
-   Revalidation **avec le client de la transaction** (c'est la ligne qui fait
-   tout : sous `Serializable`, elle pose les verrous de prédicat). Rejeu jusqu'à
-   3 tours sur `40001` / `40P01` / `23P01` / `P2034` : le perdant de la course
-   obtient au tour suivant un refus **métier** (`CAPACITY_EXCEEDED`), pas une
-   trace de base. Séjour + statut + notification + audit dans la même transaction.
-
-Deux appuis pour les tests à venir : la panne de `STAYDEC-011` se simule en
-faisant échouer `journaliserAudit` (dernière écriture de la transaction) via
-`vi.mock` + `vi.hoisted` ; la fabrique `creerDemande` accepte maintenant
-`exclusif` (`STAYDEC-014`).
+Les 8 premiers cas (`001`, `005`, `006`, `011`, `014`, `C01`, `C05`, `C06`) et
+la transaction sérialisable : détail dans `Mode Operatoire.md` §14, entrée
+1.16, et `Rapports/Lot3-Sejours.md` section `STAYDEC`.
 
 ## Ce qui a été figé à `STAYREQ` (arrêt B)
 
-- **`verifierDisponibiliteSejour`** (nouvelle Server Action, lecture seule) : même évaluation que `creerDemandeSejour`, sans persister ni journaliser — c'est l'assistant qui l'appelle à chaque changement de dates ou de personnes (débattu 500 ms). `STAYDEC` peut s'en inspirer mais n'en a pas besoin : sa revalidation se fait dans la transaction d'écriture, pas en aperçu.
-- **`POLICY-012` fermé** — `tests/integration/lot3/demandes-sejour.test.ts` : réglage `maxGuests: 1`, demande de 4 adultes au nom de Solenne, acceptée (POL-R1). `POLICY` passe de 15/16 à 16/16.
-- **Nouveau composant `CaseACocher`** (`src/components/ui/case-a-cocher.tsx`) — une case à cocher native ne tient pas 44 px (UI-002) ; même principe que `ChoixRadio` (entrée `sr-only`, étiquette entière cliquable). À réutiliser pour tout futur choix binaire ami-facing plutôt que `<input type="checkbox">` brut.
-- **Piège E2E : `.check()` seul échoue sur une case `sr-only`** — Playwright refuse de cliquer un élément recouvert par son étiquette. `check({ force: true })` est le bon contournement ici (l'étiquette est la cible voulue).
-- **Écran `/sejours`** : liste des demandes de l'ami (`MesDemandesSejour`, statut + annulation avec confirmation) au-dessus de l'assistant (`AssistantDemandeSejour`). Pas de modification via l'écran (SREQ-R5 le permet mais aucun cas de test `STAYREQ-B` ne l'exige) — annuler puis refaire une demande couvre le besoin.
-- Rapport complet dans `Rapports/Lot3-Sejours.md` (section `STAYREQ`) et journal `Mode Operatoire.md` §14, entrée 1.15.
+- **`verifierDisponibiliteSejour`** (Server Action, lecture seule) : le modèle
+  qu'a repris `verifierDecisionSejour` ci-dessus.
+- **`POLICY-012` fermé** — `POLICY` à 16/16.
+- **Composant `CaseACocher`** (`src/components/ui/case-a-cocher.tsx`) —
+  réutilisé cette session pour « J'accepte malgré ce conflit ».
+- **Piège E2E** : `.check()` seul échoue sur une case `sr-only` — `check({ force: true })`.
+- Rapport complet dans `Rapports/Lot3-Sejours.md` (section `STAYREQ`).
 
 ## `AVAIL` ★ et `OCCUP`, pour mémoire
 
-Clos respectivement à `AVAIL-C` (35/35) et `OCCUP-B` (34/34) : détail dans `Mode Operatoire.md` §14 (entrées 1.12, 1.13) et l'historique git. `AVAIL-029` a été rejoué avec des séjours confirmés en l'absence de `DORMEUR_ÉVÉNEMENT` — `SLEEP` (lot 4) le rejouera tel quel avec le vrai contributeur.
+Clos respectivement à `AVAIL-C` (35/35) et `OCCUP-B` (34/34) : détail dans
+`Mode Operatoire.md` §14 (entrées 1.12, 1.13) et l'historique git.
 
 ## Deux points d'outillage
 
 - **Le dépôt n'a pas de configuration Prettier.** Ne pas lancer `npx prettier`.
   Le style se vérifie avec `npx eslint .`.
-- `STAYDEC-A` est le **dernier arrêt Opus** de la vague 1 : contrat de décision + transaction concurrente. Après lui, `STAYDEC-B` et `STAY` reviennent à Sonnet.
+- **`STAY` est un module Sonnet ordinaire** : plus d'arrêt Opus prévu dans la
+  vague 1 après `STAYDEC-A`.

@@ -203,7 +203,7 @@ Les 13 tests passent · zéro violation d'accessibilité détectable · les 6 pa
 Mettre l'application en ligne de façon sûre et réversible, et garantir qu'une perte de données est récupérable.
 
 ## 2. Fonctionnalités
-Déploiement Vercel · base Neon · migrations en production · variables d'environnement vérifiées · sauvegarde automatique et **restauration testée** · supervision des erreurs · documentation d'installation, de configuration et d'exploitation · procédure de retour arrière.
+Déploiement Netlify · base Neon · migrations en production · variables d'environnement vérifiées · sauvegarde automatique et **restauration testée** · supervision des erreurs · documentation d'installation, de configuration et d'exploitation · procédure de retour arrière.
 
 ## 3. Données manipulées
 Toutes, en lecture pour la sauvegarde.

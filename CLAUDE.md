@@ -30,7 +30,7 @@ Yassine **n'est pas développeur**. Il ne débogue rien, ne lit pas de trace, ne
 | D3 | Séjours pendant un événement = **cas nominal** ; RSVP porte « je dors sur place » ; les dormeurs comptent dans la capacité |
 | D4 | Confidentialité par défaut : un ami voit **« Maison occupée »**, rien d'autre |
 | D5 | Solenne **seule administratrice** |
-| D6 | Domaine **non arrêté** (`chezsolenne.fr` ou `mamasolenne.fr`) → paramètre d'environnement, jamais en dur |
+| D6 | Domaine **arrêté** : `babyplace.fr` (achat en cours par Yassine — limite L1) → paramètre d'environnement, jamais en dur |
 | D7 | **Français uniquement**, pas de couche i18n |
 | D8 | Deux événements ne peuvent jamais se chevaucher |
 | D9 | Séjours **de Solenne** plus visibles par défaut (« prénom et nombre ») ; le réglage global ne vaut que pour le cercle |
@@ -40,7 +40,7 @@ Yassine **n'est pas développeur**. Il ne débogue rien, ne lit pas de trace, ne
 
 ## Stack
 
-Next.js 15 (App Router, Server Actions) · TypeScript strict · PostgreSQL + Prisma · Auth.js v5 (Argon2id) · Tailwind v4 + shadcn/ui · Resend + React Email · Vitest + Playwright · Vercel + Neon.
+Next.js 15 (App Router, Server Actions) · TypeScript strict · PostgreSQL + Prisma · Auth.js v5 (Argon2id) · Tailwind v4 + shadcn/ui · Resend + React Email · Vitest + Playwright · Netlify + Neon.
 Agenda : composant maison, pas de bibliothèque de calendrier.
 
 ## Organisation du code
