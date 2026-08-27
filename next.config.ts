@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  experimental: {
+    // La limite par défaut (1 Mo) est plus basse que `TAILLE_MAX_OCTETS`
+    // (5 Mo, cf. `@/domain/core/images`) : une photo de profil ordinaire la
+    // dépassait avant même d'atteindre la validation métier.
+    serverActions: {
+      bodySizeLimit: '6mb',
+    },
+  },
 }
 
 export default nextConfig

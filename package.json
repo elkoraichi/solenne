@@ -20,6 +20,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:prod": "tsx prisma/bootstrap-demo-production.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && tsx prisma/seed.ts",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "lock:ci": "npm install --package-lock-only --os=linux --cpu=x64 --libc=glibc"
