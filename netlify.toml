@@ -2,6 +2,9 @@
   # Les migrations s'appliquent avant chaque build de production : Netlify
   # DB (Neon en coulisses) injecte NETLIFY_DATABASE_URL, jamais DATABASE_URL
   # — prisma.config.ts et src/env/schema.ts font le même repli.
+  # ATTENTION — bootstrap-demo-production.ts VIDE puis recrée toute la base :
+  # ligne temporaire, retirée dans le commit qui suit dès que confirmé joué
+  # (cf. etat.md 28/08/2026). Ne jamais la laisser survivre à un second build.
   # bootstrap-house.ts : amorçage temporaire du contenu réel de la maison
   # (chambres, règles) — idempotent, à retirer une fois joué, cf. etat.md.
-  command = "npx prisma migrate deploy && npx tsx prisma/bootstrap-house.ts && npm run build"
+  command = "npx prisma migrate deploy && CONFIRME_PRODUCTION=oui npx tsx prisma/bootstrap-demo-production.ts && npx tsx prisma/bootstrap-house.ts && npm run build"
