@@ -2,4 +2,7 @@
   # Les migrations s'appliquent avant chaque build de production : Netlify
   # DB (Neon en coulisses) injecte NETLIFY_DATABASE_URL, jamais DATABASE_URL
   # — prisma.config.ts et src/env/schema.ts font le même repli.
-  command = "npx prisma migrate deploy && npm run build"
+  # ADMIN_BOOTSTRAP_EMAIL / ADMIN_BOOTSTRAP_PASSWORD : amorçage temporaire du
+  # premier compte administrateur (prisma/bootstrap-admin.ts) — sans effet et
+  # à retirer une fois le compte créé, cf. Rapports/etat.md.
+  command = "npx prisma migrate deploy && npx tsx prisma/bootstrap-admin.ts && npm run build"
