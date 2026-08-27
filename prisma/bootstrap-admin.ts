@@ -11,9 +11,11 @@ import { hash } from '@node-rs/argon2'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { chargerFichierEnv } from '../src/env/fichier'
+import { resoudreSourceEnv } from '../src/env/schema'
 import { PrismaClient } from '../src/generated/prisma/client'
 
 chargerFichierEnv()
+process.env = { ...process.env, ...resoudreSourceEnv(process.env) }
 
 const email = process.env.ADMIN_BOOTSTRAP_EMAIL
 const motDePasse = process.env.ADMIN_BOOTSTRAP_PASSWORD
