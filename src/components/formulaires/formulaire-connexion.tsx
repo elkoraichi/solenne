@@ -77,12 +77,12 @@ export function FormulaireConnexion() {
         <img
           src="/accueil-connexion.jpg"
           alt=""
-          className="h-40 w-full rounded-2xl object-cover shadow-md"
+          className="w-full rounded-2xl object-cover shadow-md"
         />
       )}
       <header className="flex flex-col gap-2">
         <h1 className="font-titre text-3xl leading-tight">
-          {oubli ? 'Mot de passe oublié' : 'Bienvenue chez Baby House'}
+          {oubli ? 'Mot de passe oublié' : 'Bienvenue dans le cocon Baby House'}
         </h1>
         <p className="text-encre-doux">
           {oubli

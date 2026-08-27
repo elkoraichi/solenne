@@ -30,7 +30,7 @@ test.describe('AUTH-S01 / PERM-S01 — sans session', () => {
       await page.waitForURL('**/connexion')
 
       await expect(
-        page.getByRole('heading', { name: 'Bienvenue chez Baby House' }),
+        page.getByRole('heading', { name: 'Bienvenue dans le cocon Baby House' }),
       ).toBeVisible()
       // Aucun fragment du cercle n'a été rendu au passage.
       const texte = await page.locator('body').innerText()
