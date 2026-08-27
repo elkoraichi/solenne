@@ -41,18 +41,19 @@ export interface ImageStockee {
 
 const NOM_MAGASIN = 'televersements'
 
-let magasin: Store | null | undefined
-
-/** `undefined` = pas encore tenté. Le résultat (y compris l'échec) est mis en cache. */
+/**
+ * Un nouveau magasin à chaque appel, jamais mis en cache au niveau du module :
+ * en production, `getStore` s'appuie sur un contexte propre à l'exécution en
+ * cours, qu'un magasin réutilisé d'une invocation à l'autre ne porte pas
+ * forcément correctement (constaté par d'autres utilisateurs de la
+ * bibliothèque, cf. rapport de la session du 27/08).
+ */
 function magasinDistant(): Store | null {
-  if (magasin === undefined) {
-    try {
-      magasin = getStore(NOM_MAGASIN)
-    } catch {
-      magasin = null
-    }
+  try {
+    return getStore(NOM_MAGASIN)
+  } catch {
+    return null
   }
-  return magasin
 }
 
 /** Contrôles communs à tous les téléversements. Renvoie les octets vérifiés. */
