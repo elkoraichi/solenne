@@ -6,15 +6,15 @@
 
 | | |
 |---|---|
-| **Dernier commit** | `a560aa3` — site et base Netlify provisionnés, repli `DATABASE_URL`. **Pas encore poussé sur GitHub** : `git push` refusé par `.claude/settings.json` (`deny: Bash(git push:*)`), délibéré, je n'y touche pas. Yassine pousse à la main : `git push origin main` (17 commits en attente) |
-| **Lot en cours** | 7 — `DEPLOY` seul (vague 1), en cours, **hors méthode par arrêts habituelle** : session d'infrastructure interactive (comptes, Netlify, base), pas de développement de règles métier |
-| **Module en cours** | `DEPLOY` — ni l'arrêt 1 (garde-fous, `DEPLOY-007/009/010/013/014`) ni les suivants ne sont commencés. Tout le travail de ce soir est de la mise en place d'hébergement, en amont du découpage en arrêts proposé plus tôt |
-| **Arrêt en cours** | Mise en place Netlify — **bloqué**, cf. « Prochaine action » |
-| **État du déploiement** | Compte Netlify dédié créé (`koraichi@gmail.com`, à ne pas confondre avec le compte client `wbhabitat@gmail.com` trouvé sur cette machine — ignoré, jamais touché). Site **baby-house-solenne** créé (`https://baby-house-solenne.netlify.app`, admin : `https://app.netlify.com/projects/baby-house-solenne`). Base **Netlify DB** (Neon en coulisses) provisionnée automatiquement, sauvegardes natives actives (quotidienne + à chaque publication). Verrou d'accès Netlify (`sso_login`) désactivé — le site répond publiquement. **Le site est en ligne mais l'application ne fonctionne pas encore** : `/api/sante` rend `indisponible` |
-| **Cause du blocage, diagnostiquée** | `netlify deploy --build` construit **en local** sur cette machine ; Next.js fige `DATABASE_URL` depuis `.env`/`.env.production.local` **au moment du build**, avant que le repli vers `NETLIFY_DB_URL` (ajouté ce soir, `src/env/schema.ts::resoudreSourceEnv`) ne puisse s'appliquer — `NETLIFY_DB_URL` n'existe que sur les serveurs de Netlify, jamais sur cette machine. Le site déployé tente donc de joindre `127.0.0.1:5432` (ma base de dev) |
-| **Prochaine action** | 1) Yassine pousse `git push origin main` (ou débloque le réglage s'il préfère que je le fasse — décision à lui, c'est un garde-fou du dépôt). 2) Relier le dépôt GitHub au site Netlify pour un **déploiement continu** (`Site settings → Build & deploy → Link repository` dans leur tableau de bord, ou `netlify init` qui demandera la même autorisation). Une fois relié : le build tournera chez Netlify, où `NETLIFY_DB_URL` existe réellement — `netlify.toml` lance déjà `prisma migrate deploy && npm run build`, rien d'autre à changer côté code |
-| **Suite de tests** | Inchangée depuis la clôture du lot 3 : **852 Vitest, `tsc`/`eslint` muets**, Playwright complet vert. Quatre nouveaux tests unitaires pour `resoudreSourceEnv` (`tests/unite/setup/configuration.test.ts`, describe `DEPLOY-007`) |
-| **En attente de Yassine** | 1) `git push` (ci-dessus). 2) Relier GitHub↔Netlify. 3) Jugement visuel **L2** sur les dix captures de `Rapports/apercus-lot3/`, toujours en attente depuis la clôture du lot 3 |
+| **Dernier commit** | `eab957d` (commit vide, correction d'identité Git) — **poussé sur GitHub**, `git push` fonctionne (garde-fou `.githooks/pre-push` franchi à chaque fois). Un premier blocage `git push` par `.claude/settings.json` a été résolu en laissant Yassine pousser lui-même — je n'ai jamais touché ce réglage |
+| **Lot en cours** | 7 — `DEPLOY` seul (vague 1), en cours, **hors méthode par arrêts habituelle** : session d'infrastructure interactive (comptes, Netlify, base, GitHub), pas de développement de règles métier |
+| **Module en cours** | `DEPLOY` — ni l'arrêt 1 (garde-fous, `DEPLOY-007/009/010/013/014`) ni les suivants ne sont commencés. Tout le travail des deux dernières sessions est de la mise en place d'hébergement |
+| **Arrêt en cours** | Déploiement continu Netlify — **bloqué**, cf. « Prochaine action » |
+| **État du déploiement** | Compte Netlify dédié (`koraichi@gmail.com`, ne jamais confondre avec le compte client `wbhabitat@gmail.com` présent sur cette machine). Site **baby-house-solenne** (`https://baby-house-solenne.netlify.app`, admin `https://app.netlify.com/projects/baby-house-solenne`). Base **Netlify DB** provisionnée, sauvegardes natives actives. **Dépôt GitHub relié en déploiement continu** (`netlify init` avec l'app GitHub officielle — clé et webhook posés automatiquement, `elkoraichi/solenne` branche `main`). Le bug qui faisait planter `prisma generate` au moment de l'installation des dépendances est corrigé (`prisma.config.ts`, commit `c1dc7fd`) |
+| **Blocage actuel** | Chaque build déclenché par un push échoue **avant même de commencer** : `Build blocked: Unrecognized Git contributor. This plan allows only verified account members to push to private repos.` Netlify ne reconnaît pas l'auteur du commit comme un membre vérifié du compte. Un premier essai en réglant `git config user.email "koraichi@gmail.com"` (l'adresse du compte Netlify) **n'a pas suffi** — même erreur après. L'adresse vérifiée par GitHub pour le compte `elkoraichi` n'est probablement pas `koraichi@gmail.com` |
+| **Prochaine action** | Yassine vérifie lui-même, en plein jour : (1) quelle(s) adresse(s) sont **vérifiées** sur GitHub pour le compte `elkoraichi` → `https://github.com/settings/emails` ; (2) régler `git config user.email` sur l'une d'elles, refaire un commit vide + push ; (3) si ça persiste, chercher côté tableau de bord Netlify (`Site settings → Build & deploy`, ou réglages d'équipe) un paramètre lié aux contributeurs autorisés — je n'ai pas trouvé ce réglage par l'API en fin de session |
+| **Suite de tests** | Inchangée depuis la clôture du lot 3 : **856 Vitest, `tsc`/`eslint` muets**. Quatre tests unitaires pour `resoudreSourceEnv` (`tests/unite/setup/configuration.test.ts`, describe `DEPLOY-007`) |
+| **En attente de Yassine** | 1) Débloquer « Unrecognized Git contributor » (ci-dessus). 2) Jugement visuel **L2** sur les dix captures de `Rapports/apercus-lot3/`, toujours en attente depuis la clôture du lot 3 |
 
 ## Rebranding « Baby House » (demande directe de Yassine, hors méthode par arrêts)
 
@@ -42,6 +42,16 @@ moment-là : verte.
   tableau de bord (rôle *Team Owner* requis) ou via l'API
   (`restoreSiteDatabaseSnapshot`) — de quoi couvrir `DEPLOY-005`/`006` une
   fois le site fonctionnel.
+- **Piège trouvé et corrigé** : `env()` de `prisma/config` **lève une erreur**
+  si la variable est absente (`PrismaConfigEnvError`), au lieu de rendre
+  `undefined` — inutilisable pour un repli `??`. Ça faisait planter
+  `prisma generate` (`postinstall`) dès l'étape « Install dependencies » de
+  Netlify, avant même d'atteindre le build. Remplacé par
+  `process.env.DATABASE_URL` dans `prisma.config.ts` (commit `c1dc7fd`).
+- **`netlify init` (non `--manual`) fonctionne bien mieux** que la version
+  manuelle : l'app GitHub officielle pose seule la clé de déploiement et le
+  webhook. La version `--manual` (clé SSH et webhook affichés à copier à la
+  main) a échoué — `Permission denied (publickey)` au premier essai.
 
 ## Lot 3 (`OCCUP`→`STAY`), pour mémoire
 
