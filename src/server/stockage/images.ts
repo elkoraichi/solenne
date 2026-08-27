@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, normalize } from 'node:path'
 
+import { getStore, type Store } from '@netlify/blobs'
+
 import {
   COTE_AVATAR_PX,
   formatReconnu,
@@ -26,14 +28,31 @@ import {
  * reconnaissance de format sont dans `@/domain/core/images` — les écrans en ont
  * besoin sans pouvoir importer ce fichier, réservé au serveur.
  *
- * Stockage local pour l'instant, derrière une interface étroite. Le passage à
- * un stockage distant (lot 7, `DEPLOY`) ne touchera que ce fichier.
+ * Stockage Netlify Blobs quand le contexte est disponible (production, et
+ * `netlify dev`) ; repli sur disque local sinon (développement courant,
+ * tests) — c'est `getStore` qui lève si le contexte est absent, jamais une
+ * variable d'environnement lue ici.
  */
 
 export interface ImageStockee {
-  readonly chemin: string
   readonly url: string
   readonly octets: number
+}
+
+const NOM_MAGASIN = 'televersements'
+
+let magasin: Store | null | undefined
+
+/** `undefined` = pas encore tenté. Le résultat (y compris l'échec) est mis en cache. */
+function magasinDistant(): Store | null {
+  if (magasin === undefined) {
+    try {
+      magasin = getStore(NOM_MAGASIN)
+    } catch {
+      magasin = null
+    }
+  }
+  return magasin
 }
 
 /** Contrôles communs à tous les téléversements. Renvoie les octets vérifiés. */
@@ -60,14 +79,18 @@ async function octetsVerifies(fichier: File): Promise<Uint8Array> {
 
 async function ranger(normalisee: Buffer): Promise<ImageStockee> {
   const nom = `${randomUUID()}.webp`
-  await mkdir(DOSSIER, { recursive: true })
-  await writeFile(join(DOSSIER, nom), normalisee)
+  const store = magasinDistant()
 
-  return {
-    chemin: join(DOSSIER, nom),
-    url: `/media/${nom}`,
-    octets: normalisee.byteLength,
+  if (store) {
+    const tampon = new ArrayBuffer(normalisee.byteLength)
+    new Uint8Array(tampon).set(normalisee)
+    await store.set(nom, tampon)
+  } else {
+    await mkdir(DOSSIER, { recursive: true })
+    await writeFile(join(DOSSIER, nom), normalisee)
   }
+
+  return { url: `/media/${nom}`, octets: normalisee.byteLength }
 }
 
 /**
@@ -113,8 +136,16 @@ function nomDepuisUrl(url: string): string | null {
 
 /** Lit une image stockée. Refuse tout nom qui tenterait de sortir du dossier. */
 export async function lireImage(nom: string): Promise<Buffer | null> {
-  if (!nomDepuisUrl(nom)) return null
-  const chemin = normalize(join(DOSSIER, nom))
+  const nomSur = nomDepuisUrl(nom)
+  if (!nomSur) return null
+
+  const store = magasinDistant()
+  if (store) {
+    const brut = await store.get(nomSur, { type: 'arrayBuffer' })
+    return brut ? Buffer.from(brut) : null
+  }
+
+  const chemin = normalize(join(DOSSIER, nomSur))
   if (!chemin.startsWith(DOSSIER)) return null
 
   try {
@@ -125,14 +156,20 @@ export async function lireImage(nom: string): Promise<Buffer | null> {
 }
 
 /**
- * Efface le fichier d'une photo retirée de la galerie.
+ * Efface l'image d'une photo retirée de la galerie.
  *
- * Au mieux : la base fait foi. Un fichier orphelin encombre un disque, une
+ * Au mieux : la base fait foi. Une image orpheline encombre le stockage, une
  * suppression qui échoue ne doit pas faire échouer l'action de Solenne.
  */
 export async function supprimerImage(url: string): Promise<void> {
   const nom = nomDepuisUrl(url)
   if (!nom) return
+
+  const store = magasinDistant()
+  if (store) {
+    await store.delete(nom).catch(() => undefined)
+    return
+  }
 
   const chemin = normalize(join(DOSSIER, nom))
   if (!chemin.startsWith(DOSSIER)) return

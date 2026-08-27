@@ -4,10 +4,9 @@
  * Idempotent — ne fait rien si une maison existe déjà — donc sans risque à
  * laisser dans la chaîne de build, mais retiré une fois joué (cf. etat.md).
  *
- * Pas de photos ici : le stockage des images est encore local au serveur
- * (`src/server/stockage/images.ts`), pas encore adapté à l'hébergement Netlify
- * (écriture disque à l'exécution, non garantie persistante). Solenne les
- * ajoutera depuis la console une fois ce chantier fait.
+ * Pas de photos ici : Solenne les ajoutera depuis la console
+ * (`src/server/stockage/images.ts` range maintenant sur Netlify Blobs, un
+ * stockage qui persiste au-delà d'une seule exécution serveur).
  */
 
 import { chargerFichierEnv } from '../src/env/fichier'
